@@ -315,7 +315,15 @@ func fetchCredentialsViaLogin(endpoint, organization, application, username, pas
 func (p *CasdoorProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewApplicationResource,
+		NewCertResource,
+		NewEnforcerResource,
+		NewIdpResource,
+		NewModelResource,
 		NewOrganizationResource,
+		NewPermissionResource,
+		NewRoleResource,
+		NewTokenResource,
+		NewUserResource,
 	}
 }
 
