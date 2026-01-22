@@ -1,0 +1,418 @@
+// Copyright (c) HashiCorp, Inc.
+
+package provider
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
+
+var (
+	_ resource.Resource                = &ApplicationResource{}
+	_ resource.ResourceWithConfigure   = &ApplicationResource{}
+	_ resource.ResourceWithImportState = &ApplicationResource{}
+)
+
+// ApplicationResource defines the resource implementation.
+type ApplicationResource struct {
+	client *casdoorsdk.Client
+}
+
+// ApplicationResourceModel describes the resource data model.
+type ApplicationResourceModel struct {
+	Owner                types.String `tfsdk:"owner"`
+	Name                 types.String `tfsdk:"name"`
+	DisplayName          types.String `tfsdk:"display_name"`
+	Organization         types.String `tfsdk:"organization"`
+	Logo                 types.String `tfsdk:"logo"`
+	HomepageURL          types.String `tfsdk:"homepage_url"`
+	Description          types.String `tfsdk:"description"`
+	Cert                 types.String `tfsdk:"cert"`
+	EnablePassword       types.Bool   `tfsdk:"enable_password"`
+	EnableSignUp         types.Bool   `tfsdk:"enable_sign_up"`
+	ClientID             types.String `tfsdk:"client_id"`
+	ClientSecret         types.String `tfsdk:"client_secret"`
+	RedirectURIs         types.List   `tfsdk:"redirect_uris"`
+	TokenFormat          types.String `tfsdk:"token_format"`
+	ExpireInHours        types.Int64  `tfsdk:"expire_in_hours"`
+	RefreshExpireInHours types.Int64  `tfsdk:"refresh_expire_in_hours"`
+}
+
+// NewApplicationResource creates a new Application resource.
+func NewApplicationResource() resource.Resource {
+	return &ApplicationResource{}
+}
+
+func (r *ApplicationResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_application"
+}
+
+func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Manages a Casdoor application.",
+		Attributes: map[string]schema.Attribute{
+			"owner": schema.StringAttribute{
+				Description: "The owner of the application. Defaults to 'admin'.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString("admin"),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"name": schema.StringAttribute{
+				Description: "The unique name of the application.",
+				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"display_name": schema.StringAttribute{
+				Description: "The display name of the application.",
+				Required:    true,
+			},
+			"organization": schema.StringAttribute{
+				Description: "The organization that owns this application.",
+				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"logo": schema.StringAttribute{
+				Description: "The logo URL of the application.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"homepage_url": schema.StringAttribute{
+				Description: "The homepage URL of the application.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"description": schema.StringAttribute{
+				Description: "The description of the application.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"cert": schema.StringAttribute{
+				Description: "The certificate name used for signing tokens.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"enable_password": schema.BoolAttribute{
+				Description: "Whether password login is enabled. Defaults to true.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(true),
+			},
+			"enable_sign_up": schema.BoolAttribute{
+				Description: "Whether sign up is enabled. Defaults to true.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(true),
+			},
+			"client_id": schema.StringAttribute{
+				Description: "The OAuth client ID. Generated by Casdoor.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"client_secret": schema.StringAttribute{
+				Description: "The OAuth client secret. Generated by Casdoor.",
+				Computed:    true,
+				Sensitive:   true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"redirect_uris": schema.ListAttribute{
+				Description: "The allowed redirect URIs for OAuth.",
+				Optional:    true,
+				ElementType: types.StringType,
+			},
+			"token_format": schema.StringAttribute{
+				Description: "The token format. Valid values: JWT, JWT-Empty.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString("JWT"),
+			},
+			"expire_in_hours": schema.Int64Attribute{
+				Description: "The access token expiration time in hours. Defaults to 168 (7 days).",
+				Optional:    true,
+				Computed:    true,
+				Default:     int64default.StaticInt64(168),
+			},
+			"refresh_expire_in_hours": schema.Int64Attribute{
+				Description: "The refresh token expiration time in hours. Defaults to 168 (7 days).",
+				Optional:    true,
+				Computed:    true,
+				Default:     int64default.StaticInt64(168),
+			},
+		},
+	}
+}
+
+func (r *ApplicationResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	client, ok := req.ProviderData.(*casdoorsdk.Client)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *casdoorsdk.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+		return
+	}
+
+	r.client = client
+}
+
+func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan ApplicationResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Convert redirect URIs from Terraform list to Go slice.
+	var redirectURIs []string
+	if !plan.RedirectURIs.IsNull() {
+		resp.Diagnostics.Append(plan.RedirectURIs.ElementsAs(ctx, &redirectURIs, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	app := &casdoorsdk.Application{
+		Owner:                plan.Owner.ValueString(),
+		Name:                 plan.Name.ValueString(),
+		DisplayName:          plan.DisplayName.ValueString(),
+		Organization:         plan.Organization.ValueString(),
+		Logo:                 plan.Logo.ValueString(),
+		HomepageUrl:          plan.HomepageURL.ValueString(),
+		Description:          plan.Description.ValueString(),
+		Cert:                 plan.Cert.ValueString(),
+		EnablePassword:       plan.EnablePassword.ValueBool(),
+		EnableSignUp:         plan.EnableSignUp.ValueBool(),
+		RedirectUris:         redirectURIs,
+		TokenFormat:          plan.TokenFormat.ValueString(),
+		ExpireInHours:        int(plan.ExpireInHours.ValueInt64()),
+		RefreshExpireInHours: int(plan.RefreshExpireInHours.ValueInt64()),
+	}
+
+	success, err := r.client.AddApplication(app)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Creating Application",
+			fmt.Sprintf("Could not create application %q: %s", plan.Name.ValueString(), err),
+		)
+		return
+	}
+
+	if !success {
+		resp.Diagnostics.AddError(
+			"Error Creating Application",
+			fmt.Sprintf("Casdoor returned failure when creating application %q", plan.Name.ValueString()),
+		)
+		return
+	}
+
+	// Read back the created application to get computed fields (client_id, client_secret).
+	createdApp, err := r.client.GetApplication(plan.Name.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Application",
+			fmt.Sprintf("Could not read application %q after creation: %s", plan.Name.ValueString(), err),
+		)
+		return
+	}
+
+	if createdApp == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Application",
+			fmt.Sprintf("Application %q not found after creation", plan.Name.ValueString()),
+		)
+		return
+	}
+
+	// Update computed fields.
+	plan.ClientID = types.StringValue(createdApp.ClientId)
+	plan.ClientSecret = types.StringValue(createdApp.ClientSecret)
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+}
+
+func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state ApplicationResourceModel
+
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	app, err := r.client.GetApplication(state.Name.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Application",
+			fmt.Sprintf("Could not read application %q: %s", state.Name.ValueString(), err),
+		)
+		return
+	}
+
+	if app == nil {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
+	state.Owner = types.StringValue(app.Owner)
+	state.Name = types.StringValue(app.Name)
+	state.DisplayName = types.StringValue(app.DisplayName)
+	state.Organization = types.StringValue(app.Organization)
+	state.Logo = types.StringValue(app.Logo)
+	state.HomepageURL = types.StringValue(app.HomepageUrl)
+	state.Description = types.StringValue(app.Description)
+	state.Cert = types.StringValue(app.Cert)
+	state.EnablePassword = types.BoolValue(app.EnablePassword)
+	state.EnableSignUp = types.BoolValue(app.EnableSignUp)
+	state.ClientID = types.StringValue(app.ClientId)
+	state.ClientSecret = types.StringValue(app.ClientSecret)
+	state.TokenFormat = types.StringValue(app.TokenFormat)
+	state.ExpireInHours = types.Int64Value(int64(app.ExpireInHours))
+	state.RefreshExpireInHours = types.Int64Value(int64(app.RefreshExpireInHours))
+
+	// Convert redirect URIs.
+	if len(app.RedirectUris) > 0 {
+		redirectURIs, diags := types.ListValueFrom(ctx, types.StringType, app.RedirectUris)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		state.RedirectURIs = redirectURIs
+	} else {
+		state.RedirectURIs = types.ListNull(types.StringType)
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan ApplicationResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Preserve computed fields from state.
+	var state ApplicationResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Convert redirect URIs from Terraform list to Go slice.
+	var redirectURIs []string
+	if !plan.RedirectURIs.IsNull() {
+		resp.Diagnostics.Append(plan.RedirectURIs.ElementsAs(ctx, &redirectURIs, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	app := &casdoorsdk.Application{
+		Owner:                plan.Owner.ValueString(),
+		Name:                 plan.Name.ValueString(),
+		DisplayName:          plan.DisplayName.ValueString(),
+		Organization:         plan.Organization.ValueString(),
+		Logo:                 plan.Logo.ValueString(),
+		HomepageUrl:          plan.HomepageURL.ValueString(),
+		Description:          plan.Description.ValueString(),
+		Cert:                 plan.Cert.ValueString(),
+		EnablePassword:       plan.EnablePassword.ValueBool(),
+		EnableSignUp:         plan.EnableSignUp.ValueBool(),
+		ClientId:             state.ClientID.ValueString(),
+		ClientSecret:         state.ClientSecret.ValueString(),
+		RedirectUris:         redirectURIs,
+		TokenFormat:          plan.TokenFormat.ValueString(),
+		ExpireInHours:        int(plan.ExpireInHours.ValueInt64()),
+		RefreshExpireInHours: int(plan.RefreshExpireInHours.ValueInt64()),
+	}
+
+	success, err := r.client.UpdateApplication(app)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Updating Application",
+			fmt.Sprintf("Could not update application %q: %s", plan.Name.ValueString(), err),
+		)
+		return
+	}
+
+	if !success {
+		resp.Diagnostics.AddError(
+			"Error Updating Application",
+			fmt.Sprintf("Casdoor returned failure when updating application %q", plan.Name.ValueString()),
+		)
+		return
+	}
+
+	// Keep computed values from state.
+	plan.ClientID = state.ClientID
+	plan.ClientSecret = state.ClientSecret
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+}
+
+func (r *ApplicationResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state ApplicationResourceModel
+
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Include organization field as the Casdoor API requires it for deletion.
+	app := &casdoorsdk.Application{
+		Owner:        state.Owner.ValueString(),
+		Name:         state.Name.ValueString(),
+		Organization: state.Organization.ValueString(),
+	}
+
+	success, err := r.client.DeleteApplication(app)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Deleting Application",
+			fmt.Sprintf("Could not delete application %q: %s", state.Name.ValueString(), err),
+		)
+		return
+	}
+
+	if !success {
+		resp.Diagnostics.AddError(
+			"Error Deleting Application",
+			fmt.Sprintf("Casdoor returned failure when deleting application %q", state.Name.ValueString()),
+		)
+		return
+	}
+}
+
+func (r *ApplicationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+}
