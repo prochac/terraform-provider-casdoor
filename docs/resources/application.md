@@ -26,7 +26,7 @@ resource "casdoor_application" "oauth_app" {
   display_name = "OAuth Application"
   organization = casdoor_organization.example.name
 
-  logo         = "https://example.com/app-logo.png"
+  logo         = "https://cdn.casbin.org/img/casdoor-logo_1185x256.png"
   homepage_url = "https://myapp.example.com"
   description  = "My OAuth-enabled application"
 
@@ -38,9 +38,150 @@ resource "casdoor_application" "oauth_app" {
     "https://myapp.example.com/oauth/callback",
   ]
 
+  grant_types = [
+    "authorization_code",
+    "password",
+    "client_credentials",
+    "token",
+    "id_token",
+    "refresh_token",
+  ]
+
+  cert                    = "cert-built-in"
   token_format            = "JWT"
   expire_in_hours         = 24
   refresh_expire_in_hours = 168
+}
+
+# Full application with signin methods, signup items, and providers
+resource "casdoor_application" "full_app" {
+  name         = "full-app"
+  display_name = "Full Application"
+  organization = casdoor_organization.example.name
+
+  logo        = "https://cdn.casbin.org/img/casdoor-logo_1185x256.png"
+  description = "Application with all configuration options"
+
+  # Authentication settings
+  enable_password = true
+  enable_sign_up  = true
+  disable_signin  = false
+
+  # OAuth settings
+  redirect_uris = ["http://localhost:9000/callback"]
+  grant_types = [
+    "authorization_code",
+    "password",
+    "client_credentials",
+    "token",
+    "id_token",
+    "refresh_token",
+  ]
+
+  cert                    = "cert-built-in"
+  token_format            = "JWT"
+  expire_in_hours         = 168
+  refresh_expire_in_hours = 168
+
+  # UI settings
+  form_offset = 2
+
+  # Providers (identity providers for the application)
+  providers {
+    name        = "provider_captcha_default"
+    can_sign_up = false
+    can_sign_in = false
+    can_unlink  = false
+    prompted    = false
+  }
+
+  # Signin methods
+  signin_methods {
+    name         = "Password"
+    display_name = "Password"
+    rule         = "All"
+  }
+  signin_methods {
+    name         = "Verification code"
+    display_name = "Verification code"
+    rule         = "All"
+  }
+  signin_methods {
+    name         = "WebAuthn"
+    display_name = "WebAuthn"
+    rule         = "None"
+  }
+
+  # Signup form items
+  signup_items {
+    name     = "ID"
+    visible  = false
+    required = true
+    rule     = "Random"
+  }
+  signup_items {
+    name     = "Username"
+    visible  = true
+    required = true
+    rule     = "None"
+  }
+  signup_items {
+    name     = "Display name"
+    visible  = true
+    required = true
+    rule     = "None"
+  }
+  signup_items {
+    name     = "Password"
+    visible  = true
+    required = true
+    rule     = "None"
+  }
+  signup_items {
+    name     = "Confirm password"
+    visible  = true
+    required = true
+    rule     = "None"
+  }
+  signup_items {
+    name     = "Email"
+    visible  = true
+    required = true
+    rule     = "Normal"
+  }
+  signup_items {
+    name     = "Phone"
+    visible  = true
+    required = true
+    rule     = "None"
+  }
+  signup_items {
+    name     = "Agreement"
+    visible  = true
+    required = true
+    rule     = "None"
+  }
+  signup_items {
+    name     = "Signup button"
+    visible  = true
+    required = true
+    rule     = "None"
+  }
+  signup_items {
+    name     = "Providers"
+    visible  = true
+    required = true
+    rule     = "None"
+    custom_css = <<-EOT
+      .provider-img {
+        width: 30px;
+        margin: 5px;
+      }
+      .provider-big-img {
+        margin-bottom: 10px;
+      }
+    EOT
+  }
 }
 
 # Reference the generated OAuth credentials
@@ -65,22 +206,162 @@ output "client_secret" {
 
 ### Optional
 
+- `affiliation_url` (String) Affiliation URL.
 - `cert` (String) The certificate name used for signing tokens.
+- `default_group` (String) The default group for new users.
 - `description` (String) The description of the application.
+- `disable_signin` (Boolean) Whether signin is disabled.
+- `enable_auto_signin` (Boolean) Whether auto signin is enabled.
+- `enable_code_signin` (Boolean) Whether code signin is enabled.
+- `enable_link_with_email` (Boolean) Whether linking with email is enabled.
 - `enable_password` (Boolean) Whether password login is enabled. Defaults to true.
+- `enable_saml_c14n10` (Boolean) Whether SAML C14N 1.0 is enabled.
+- `enable_saml_compress` (Boolean) Whether SAML response compression is enabled.
+- `enable_saml_post_binding` (Boolean) Whether SAML POST binding is enabled.
 - `enable_sign_up` (Boolean) Whether sign up is enabled. Defaults to true.
+- `enable_signin_session` (Boolean) Whether signin session is enabled.
+- `enable_web_authn` (Boolean) Whether WebAuthn is enabled.
 - `expire_in_hours` (Number) The access token expiration time in hours. Defaults to 168 (7 days).
+- `failed_signin_frozen_time` (Number) Duration in minutes to freeze account after exceeding failed signin limit.
+- `failed_signin_limit` (Number) Maximum number of failed signin attempts before lockout.
+- `footer_html` (String) Custom HTML for the page footer.
+- `forced_redirect_origin` (String) Forced redirect origin for OAuth callbacks.
+- `forget_url` (String) Custom forgot password URL.
+- `form_background_url` (String) Background image URL for the form.
+- `form_background_url_mobile` (String) Background image URL for the form on mobile devices.
+- `form_css` (String) Custom CSS for the form.
+- `form_css_mobile` (String) Custom CSS for the form on mobile devices.
+- `form_offset` (Number) Form offset position.
+- `form_side_html` (String) Custom HTML for the form side panel.
+- `grant_types` (List of String) The allowed OAuth grant types.
+- `header_html` (String) Custom HTML for the page header.
 - `homepage_url` (String) The homepage URL of the application.
+- `ip_restriction` (String) IP restriction rules.
+- `ip_whitelist` (String) IP whitelist.
+- `is_shared` (Boolean) Whether the application is shared across organizations.
 - `logo` (String) The logo URL of the application.
+- `order` (Number) Display order of the application.
+- `org_choice_mode` (String) Organization choice mode for multi-org applications.
 - `owner` (String) The owner of the application. Defaults to 'admin'.
+- `providers` (Attributes List) List of identity providers configured for the application. (see [below for nested schema](#nestedatt--providers))
 - `redirect_uris` (List of String) The allowed redirect URIs for OAuth.
 - `refresh_expire_in_hours` (Number) The refresh token expiration time in hours. Defaults to 168 (7 days).
+- `saml_attributes` (Attributes List) SAML attribute mappings. (see [below for nested schema](#nestedatt--saml_attributes))
+- `saml_reply_url` (String) The SAML reply URL (Assertion Consumer Service URL).
+- `signin_html` (String) Custom HTML for the signin page.
+- `signin_items` (Attributes List) List of signin form items. (see [below for nested schema](#nestedatt--signin_items))
+- `signin_methods` (Attributes List) List of signin methods. (see [below for nested schema](#nestedatt--signin_methods))
+- `signin_url` (String) Custom signin URL.
+- `signup_html` (String) Custom HTML for the signup page.
+- `signup_items` (Attributes List) List of signup form items. (see [below for nested schema](#nestedatt--signup_items))
+- `signup_url` (String) Custom signup URL.
+- `tags` (List of String) Tags for the application.
+- `terms_of_use` (String) Terms of use URL or text.
+- `theme_data` (Attributes) Theme configuration for the application. (see [below for nested schema](#nestedatt--theme_data))
+- `token_fields` (List of String) Additional fields to include in the token.
 - `token_format` (String) The token format. Valid values: JWT, JWT-Empty.
+- `token_signing_method` (String) The token signing method (e.g., RS256).
+- `use_email_as_saml_name_id` (Boolean) Whether to use email as SAML NameID.
 
 ### Read-Only
 
+- `cert_public_key` (String) The public key of the certificate. Computed from the cert field.
 - `client_id` (String) The OAuth client ID. Generated by Casdoor.
 - `client_secret` (String, Sensitive) The OAuth client secret. Generated by Casdoor.
+- `created_time` (String) The time when the application was created.
+
+<a id="nestedatt--providers"></a>
+### Nested Schema for `providers`
+
+Required:
+
+- `name` (String) The name of the provider.
+
+Optional:
+
+- `alert_type` (String) Alert type for the provider.
+- `can_sign_in` (Boolean) Whether users can sign in with this provider.
+- `can_sign_up` (Boolean) Whether users can sign up with this provider.
+- `can_unlink` (Boolean) Whether users can unlink this provider.
+- `owner` (String) The owner of the provider.
+- `prompted` (Boolean) Whether this provider is prompted during login.
+- `rule` (String) Rule for the provider.
+
+
+<a id="nestedatt--saml_attributes"></a>
+### Nested Schema for `saml_attributes`
+
+Required:
+
+- `name` (String) The name of the SAML attribute.
+
+Optional:
+
+- `name_format` (String) The name format of the SAML attribute.
+- `value` (String) The value expression for the SAML attribute.
+
+
+<a id="nestedatt--signin_items"></a>
+### Nested Schema for `signin_items`
+
+Required:
+
+- `name` (String) The name of the signin item.
+
+Optional:
+
+- `custom_css` (String) Custom CSS for the item.
+- `is_custom` (Boolean) Whether the item is custom.
+- `label` (String) Label for the item.
+- `placeholder` (String) Placeholder text for the item.
+- `rule` (String) Rule for the item.
+- `visible` (Boolean) Whether the item is visible.
+
+
+<a id="nestedatt--signin_methods"></a>
+### Nested Schema for `signin_methods`
+
+Required:
+
+- `name` (String) The name of the signin method.
+
+Optional:
+
+- `display_name` (String) The display name of the signin method.
+- `rule` (String) The rule for the signin method.
+
+
+<a id="nestedatt--signup_items"></a>
+### Nested Schema for `signup_items`
+
+Required:
+
+- `name` (String) The name of the signup item.
+
+Optional:
+
+- `custom_css` (String) Custom CSS for the item.
+- `label` (String) Label for the item.
+- `options` (List of String) Options for select-type items.
+- `placeholder` (String) Placeholder text for the item.
+- `prompted` (Boolean) Whether the item is prompted.
+- `regex` (String) Regex pattern for validation.
+- `required` (Boolean) Whether the item is required.
+- `rule` (String) Validation rule for the item.
+- `type` (String) The type of the item.
+- `visible` (Boolean) Whether the item is visible.
+
+
+<a id="nestedatt--theme_data"></a>
+### Nested Schema for `theme_data`
+
+Optional:
+
+- `border_radius` (Number) The border radius in pixels.
+- `color_primary` (String) The primary color in hex format.
+- `is_compact` (Boolean) Whether to use compact mode.
+- `is_enabled` (Boolean) Whether the theme is enabled.
+- `theme_type` (String) The theme type (e.g., 'default', 'dark').
 
 ## Import
 

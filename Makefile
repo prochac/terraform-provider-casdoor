@@ -6,6 +6,9 @@ build:
 install: build
 	go install -v ./...
 
+uninstall:
+	-rm $$(go env GOBIN)/terraform-provider-casdoor
+
 lint:
 	golangci-lint run
 

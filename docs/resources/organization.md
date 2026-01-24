@@ -19,23 +19,375 @@ resource "casdoor_organization" "example" {
   display_name = "My Organization"
 }
 
-# Organization with additional settings
-resource "casdoor_organization" "advanced" {
-  name         = "advanced-org"
-  display_name = "Advanced Organization"
+# Organization with all settings (based on Casdoor UI defaults)
+resource "casdoor_organization" "full" {
+  name         = "full-organization"
+  display_name = "Full Organization"
 
-  website_url    = "https://example.com"
-  logo           = "https://example.com/logo.png"
-  favicon        = "https://example.com/favicon.ico"
-  password_type  = "bcrypt"
-  default_avatar = "https://example.com/default-avatar.png"
+  website_url = "https://door.casdoor.com"
+  favicon     = "https://cdn.casbin.org/img/favicon.png"
 
-  tags      = ["production", "main"]
-  languages = ["en", "de", "fr"]
+  # Password settings
+  password_type            = "bcrypt"
+  password_options         = ["AtLeast6"]
+  password_obfuscator_type = "Plain"
+  password_expire_days     = 0
 
-  enable_soft_deletion  = true
-  is_profile_public     = false
-  use_email_as_username = true
+  # Regional settings
+  country_codes = ["US"]
+  languages     = ["en", "es", "fr", "de", "ja", "zh", "vi", "pt", "tr", "pl", "uk"]
+
+  # User defaults
+  default_avatar = "https://cdn.casbin.org/img/casbin.svg"
+
+  # Feature flags
+  enable_soft_deletion = false
+  is_profile_public    = true
+  enable_tour          = true
+  disable_signin       = false
+
+  # MFA settings
+  mfa_remember_in_hours = 12
+
+  # Account items - controls user profile fields visibility and editability
+  account_items = [
+    {
+      name        = "Organization"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "ID"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Immutable"
+    },
+    {
+      name        = "Name"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Display name"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Avatar"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "User type"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Password"
+      visible     = true
+      view_rule   = "Self"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Email"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Phone"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Country code"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Country/Region"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Location"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Address"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Affiliation"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Title"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "ID card type"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "ID card"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "ID card info"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Real name"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "ID verification"
+      visible     = true
+      view_rule   = "Self"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Homepage"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Bio"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Tag"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Language"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Gender"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Birthday"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Education"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Score"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Karma"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Ranking"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Balance"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Balance credit"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Balance currency"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Signup application"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Register type"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Register source"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "API key"
+      visible     = false
+      modify_rule = "Self"
+    },
+    {
+      name        = "Groups"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Roles"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Immutable"
+    },
+    {
+      name        = "Permissions"
+      visible     = true
+      view_rule   = "Public"
+      modify_rule = "Immutable"
+    },
+    {
+      name        = "3rd-party logins"
+      visible     = true
+      view_rule   = "Self"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Properties"
+      visible     = false
+      view_rule   = "Admin"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Is online"
+      visible     = true
+      view_rule   = "Admin"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Is admin"
+      visible     = true
+      view_rule   = "Admin"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Is forbidden"
+      visible     = true
+      view_rule   = "Admin"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Is deleted"
+      visible     = true
+      view_rule   = "Admin"
+      modify_rule = "Admin"
+    },
+    {
+      name        = "Multi-factor authentication"
+      visible     = true
+      view_rule   = "Self"
+      modify_rule = "Self"
+    },
+    {
+      name        = "WebAuthn credentials"
+      visible     = true
+      view_rule   = "Self"
+      modify_rule = "Self"
+    },
+    {
+      name        = "Managed accounts"
+      visible     = true
+      view_rule   = "Self"
+      modify_rule = "Self"
+    },
+    {
+      name        = "MFA accounts"
+      visible     = true
+      view_rule   = "Self"
+      modify_rule = "Self"
+    },
+  ]
+}
+
+# Organization with theme customization
+resource "casdoor_organization" "themed" {
+  name         = "themed-org"
+  display_name = "Themed Organization"
+
+  theme_data = {
+    theme_type    = "default"
+    color_primary = "#1890ff"
+    border_radius = 6
+    is_compact    = false
+    is_enabled    = true
+  }
+}
+
+# Organization with MFA configuration
+resource "casdoor_organization" "secure" {
+  name         = "secure-org"
+  display_name = "Secure Organization"
+
+  mfa_remember_in_hours = 24
+
+  mfa_items = [
+    {
+      name = "app"
+      rule = "Optional"
+    },
+    {
+      name = "email"
+      rule = "Optional"
+    },
+    {
+      name = "sms"
+      rule = "Optional"
+    },
+  ]
 }
 ```
 
@@ -49,13 +401,16 @@ resource "casdoor_organization" "advanced" {
 
 ### Optional
 
+- `account_items` (Attributes List) List of account item configurations that control user profile fields visibility and editability. (see [below for nested schema](#nestedatt--account_items))
 - `country_codes` (List of String) List of allowed country codes.
 - `default_application` (String) The default application name for this organization.
 - `default_avatar` (String) The default avatar URL for users.
 - `default_password` (String, Sensitive) The default password for new users.
+- `disable_signin` (Boolean) Whether sign-in is disabled for the organization.
 - `enable_soft_deletion` (Boolean) Whether soft deletion is enabled.
 - `enable_tour` (Boolean) Whether the tour guide is enabled.
 - `favicon` (String) The favicon URL of the organization.
+- `has_privilege_consent` (Boolean) Whether the organization has privilege consent enabled.
 - `init_score` (Number) Initial score for new users.
 - `ip_restriction` (String) IP restriction rules.
 - `ip_whitelist` (String) IP whitelist for the organization.
@@ -65,15 +420,64 @@ resource "casdoor_organization" "advanced" {
 - `logo_dark` (String) The dark mode logo URL of the organization.
 - `master_password` (String, Sensitive) The master password for the organization.
 - `master_verification_code` (String, Sensitive) The master verification code.
+- `mfa_items` (Attributes List) List of MFA configurations. (see [below for nested schema](#nestedatt--mfa_items))
+- `mfa_remember_in_hours` (Number) Number of hours to remember MFA authentication.
+- `nav_items` (List of String) List of navigation items.
 - `owner` (String) The owner of the organization. Defaults to 'admin'.
+- `password_expire_days` (Number) Number of days before password expires. 0 means no expiration.
 - `password_obfuscator_key` (String, Sensitive) The password obfuscator key.
 - `password_obfuscator_type` (String) The password obfuscator type.
 - `password_options` (List of String) Password complexity options.
 - `password_salt` (String) The salt used for password hashing.
 - `password_type` (String) The password hashing algorithm. Valid values: plain, bcrypt, sha256-salt, md5-salt, etc.
 - `tags` (List of String) Tags for the organization.
+- `theme_data` (Attributes) Theme configuration for the organization. (see [below for nested schema](#nestedatt--theme_data))
 - `use_email_as_username` (Boolean) Whether to use email as username.
+- `user_types` (List of String) List of user types allowed in the organization.
 - `website_url` (String) The website URL of the organization.
+- `widget_items` (List of String) List of widget items.
+
+### Read-Only
+
+- `created_time` (String) The time when the organization was created.
+
+<a id="nestedatt--account_items"></a>
+### Nested Schema for `account_items`
+
+Required:
+
+- `name` (String) The name of the account item (field name).
+
+Optional:
+
+- `modify_rule` (String) Rule for modifying this field.
+- `regex` (String) Regex pattern for field validation.
+- `view_rule` (String) Rule for viewing this field.
+- `visible` (Boolean) Whether this field is visible.
+
+
+<a id="nestedatt--mfa_items"></a>
+### Nested Schema for `mfa_items`
+
+Required:
+
+- `name` (String) The name of the MFA method.
+
+Optional:
+
+- `rule` (String) The rule for the MFA method.
+
+
+<a id="nestedatt--theme_data"></a>
+### Nested Schema for `theme_data`
+
+Optional:
+
+- `border_radius` (Number) The border radius in pixels.
+- `color_primary` (String) The primary color in hex format.
+- `is_compact` (Boolean) Whether to use compact mode.
+- `is_enabled` (Boolean) Whether the theme is enabled.
+- `theme_type` (String) The theme type (e.g., 'default', 'dark').
 
 ## Import
 
