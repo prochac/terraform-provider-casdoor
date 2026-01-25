@@ -70,19 +70,55 @@ resource "casdoor_application" "app" {
 | Token        | ✔️     | casdoor_token        | OAuth tokens                           |
 | Model        | ✔️     | casdoor_model        | Casbin model configuration             |
 | Enforcer     | ✔️     | casdoor_enforcer     | Casbin enforcer                        |
-| Adapter      | ❌     | casdoor_adapter      | Casbin policy storage adapter          |
-| Group        | ❌     | casdoor_group        | User groups                            |
-| Ldap         | ❌     | casdoor_ldap         | LDAP server configuration              |
-| Syncer       | ❌     | casdoor_syncer       | External system synchronization        |
-| Webhook      | ❌     | casdoor_webhook      | Webhook configuration                  |
-| Resource     | ❌     | casdoor_resource     | Protected resources (API endpoints)    |
-| Plan         | ❌     | casdoor_plan         | SaaS: subscription plan definitions    |
-| Pricing      | ❌     | casdoor_pricing      | SaaS: pricing configuration            |
-| Product      | ❌     | casdoor_product      | SaaS: product catalog                  |
+| Adapter      | ❌      | casdoor_adapter      | Casbin policy storage adapter          |
+| Group        | ❌      | casdoor_group        | User groups                            |
+| Ldap         | ❌      | casdoor_ldap         | LDAP server configuration              |
+| Syncer       | ❌      | casdoor_syncer       | External system synchronization        |
+| Webhook      | ❌      | casdoor_webhook      | Webhook configuration                  |
+| Resource     | ❌      | casdoor_resource     | Protected resources (API endpoints)    |
+| Plan         | ❌      | casdoor_plan         | SaaS: subscription plan definitions    |
+| Pricing      | ❌      | casdoor_pricing      | SaaS: pricing configuration            |
+| Product      | ❌      | casdoor_product      | SaaS: product catalog                  |
 
-Legend: ✔️ Implemented  ❌ Not Yet Implemented
+Legend: ✔️ Implemented ❌ Not Yet Implemented
 
-*SaaS resources are for [building SaaS products with Casdoor](https://casdoor.org/docs/category/saas-management), not needed for basic auth.*
+*SaaS resources are
+for [building SaaS products with Casdoor](https://casdoor.org/docs/category/saas-management),
+not needed for basic auth.*
+
+## Import init resources
+
+Some resources are created by Casdoor automatically during its first start.
+For example, the `built-in` organization.
+
+You can import it by defining skeleton resource,
+
+```hcl
+resource "casdoor_organization" "built-in" {
+  name = "built-in"
+}
+```
+
+importing the resource,
+
+```shell
+tofu import casdoor_organization.built-in built-in
+```
+
+and replacing the skeleton by the retrieved state.
+
+```shell
+tofu state show -show-sensitive casdoor_organization.built-in > built-in.tf
+```
+
+You may need to remove read-only attributes, like `created_time`.
+
+> [!WARNING]  
+> When used Go SDK is outdated, it may remove some attributes it isn't aware
+> of. Because the Casdoor API uses `POST /api/update-{resource}` endpoints that
+> just replace the data in-place. This removal won't be shown in the plan.
+
+Or you can use the script located in [examples/import](examples/import)
 
 ## Debugging
 

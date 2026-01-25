@@ -115,6 +115,7 @@ func (r *LdapResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "The password for the bind DN.",
 				Required:    true,
 				Sensitive:   true,
+				WriteOnly:   true,
 			},
 			"base_dn": schema.StringAttribute{
 				Description: "The base DN for LDAP searches.",
