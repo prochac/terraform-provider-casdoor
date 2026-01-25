@@ -1,5 +1,8 @@
 # OpenTofu/Terraform Provider for Casdoor
 
+[![OpenTofu](https://img.shields.io/badge/OPENTOFU-FFDA18?style=for-the-badge&logo=opentofu&logoColor=white)](https://search.opentofu.org/provider/prochac/casdoor/)
+[![Terraform](https://img.shields.io/badge/terraform-%235835CC.svg?style=for-the-badge&logo=terraform&logoColor=white)](https://registry.terraform.io/providers/prochac/casdoor)
+
 This is the official OpenTofu/Terraform provider for
 managing [Casdoor](https://casdoor.org/) resources. It allows you to define
 Organizations, Applications, Users, and Roles as Infrastructure as Code.
