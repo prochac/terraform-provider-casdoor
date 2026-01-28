@@ -96,7 +96,6 @@ resource "casdoor_adapter" "test" {
   owner       = %q
   name        = %q
   use_same_db = %t
-  is_enabled  = false
 }
 `, owner, name, useSameDb)
 }
@@ -106,6 +105,7 @@ func testAccAdapterResourceConfigWithDatabase(owner, name string) string {
 resource "casdoor_adapter" "test" {
   owner         = %q
   name          = %q
+  table         = "casbin_rule"
   type          = "Database"
   database_type = "mysql"
   host          = "localhost"
@@ -113,8 +113,6 @@ resource "casdoor_adapter" "test" {
   user          = "root"
   password      = "password"
   database      = "casbin"
-  table         = "casbin_rule"
-  is_enabled    = false
 }
 `, owner, name)
 }

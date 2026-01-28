@@ -29,20 +29,18 @@ type AdapterResource struct {
 }
 
 type AdapterResourceModel struct {
-	Owner           types.String `tfsdk:"owner"`
-	Name            types.String `tfsdk:"name"`
-	CreatedTime     types.String `tfsdk:"created_time"`
-	UseSameDb       types.Bool   `tfsdk:"use_same_db"`
-	Type            types.String `tfsdk:"type"`
-	DatabaseType    types.String `tfsdk:"database_type"`
-	Host            types.String `tfsdk:"host"`
-	Port            types.Int64  `tfsdk:"port"`
-	User            types.String `tfsdk:"user"`
-	Password        types.String `tfsdk:"password"`
-	Database        types.String `tfsdk:"database"`
-	Table           types.String `tfsdk:"table"`
-	TableNamePrefix types.String `tfsdk:"table_name_prefix"`
-	IsEnabled       types.Bool   `tfsdk:"is_enabled"`
+	Owner        types.String `tfsdk:"owner"`
+	Name         types.String `tfsdk:"name"`
+	CreatedTime  types.String `tfsdk:"created_time"`
+	UseSameDb    types.Bool   `tfsdk:"use_same_db"`
+	Type         types.String `tfsdk:"type"`
+	DatabaseType types.String `tfsdk:"database_type"`
+	Host         types.String `tfsdk:"host"`
+	Port         types.Int64  `tfsdk:"port"`
+	User         types.String `tfsdk:"user"`
+	Password     types.String `tfsdk:"password"`
+	Database     types.String `tfsdk:"database"`
+	Table        types.String `tfsdk:"table"`
 }
 
 func NewAdapterResource() resource.Resource {
@@ -77,6 +75,12 @@ func (r *AdapterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
+			},
+			"table": schema.StringAttribute{
+				Description: "The table name for storing policies.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
 			},
 			"use_same_db": schema.BoolAttribute{
 				Description: "Whether to use the same database as Casdoor.",
@@ -127,24 +131,6 @@ func (r *AdapterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Computed:    true,
 				Default:     stringdefault.StaticString(""),
 			},
-			"table": schema.StringAttribute{
-				Description: "The table name for storing policies.",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString(""),
-			},
-			"table_name_prefix": schema.StringAttribute{
-				Description: "The prefix for table names.",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString(""),
-			},
-			"is_enabled": schema.BoolAttribute{
-				Description: "Whether the adapter is enabled.",
-				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(true),
-			},
 		},
 	}
 }
@@ -175,19 +161,17 @@ func (r *AdapterResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	adapter := &casdoorsdk.Adapter{
-		Owner:           plan.Owner.ValueString(),
-		Name:            plan.Name.ValueString(),
-		UseSameDb:       plan.UseSameDb.ValueBool(),
-		Type:            plan.Type.ValueString(),
-		DatabaseType:    plan.DatabaseType.ValueString(),
-		Host:            plan.Host.ValueString(),
-		Port:            int(plan.Port.ValueInt64()),
-		User:            plan.User.ValueString(),
-		Password:        plan.Password.ValueString(),
-		Database:        plan.Database.ValueString(),
-		Table:           plan.Table.ValueString(),
-		TableNamePrefix: plan.TableNamePrefix.ValueString(),
-		IsEnabled:       plan.IsEnabled.ValueBool(),
+		Owner:        plan.Owner.ValueString(),
+		Name:         plan.Name.ValueString(),
+		UseSameDb:    plan.UseSameDb.ValueBool(),
+		Type:         plan.Type.ValueString(),
+		DatabaseType: plan.DatabaseType.ValueString(),
+		Host:         plan.Host.ValueString(),
+		Port:         int(plan.Port.ValueInt64()),
+		User:         plan.User.ValueString(),
+		Password:     plan.Password.ValueString(),
+		Database:     plan.Database.ValueString(),
+		Table:        plan.Table.ValueString(),
 	}
 
 	success, err := r.client.AddAdapter(adapter)
@@ -249,6 +233,7 @@ func (r *AdapterResource) Read(ctx context.Context, req resource.ReadRequest, re
 	state.Owner = types.StringValue(adapter.Owner)
 	state.Name = types.StringValue(adapter.Name)
 	state.CreatedTime = types.StringValue(adapter.CreatedTime)
+	state.Table = types.StringValue(adapter.Table)
 	state.UseSameDb = types.BoolValue(adapter.UseSameDb)
 	state.Type = types.StringValue(adapter.Type)
 	state.DatabaseType = types.StringValue(adapter.DatabaseType)
@@ -257,9 +242,6 @@ func (r *AdapterResource) Read(ctx context.Context, req resource.ReadRequest, re
 	state.User = types.StringValue(adapter.User)
 	state.Password = types.StringValue(adapter.Password)
 	state.Database = types.StringValue(adapter.Database)
-	state.Table = types.StringValue(adapter.Table)
-	state.TableNamePrefix = types.StringValue(adapter.TableNamePrefix)
-	state.IsEnabled = types.BoolValue(adapter.IsEnabled)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -273,20 +255,18 @@ func (r *AdapterResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 
 	adapter := &casdoorsdk.Adapter{
-		Owner:           plan.Owner.ValueString(),
-		Name:            plan.Name.ValueString(),
-		CreatedTime:     plan.CreatedTime.ValueString(),
-		UseSameDb:       plan.UseSameDb.ValueBool(),
-		Type:            plan.Type.ValueString(),
-		DatabaseType:    plan.DatabaseType.ValueString(),
-		Host:            plan.Host.ValueString(),
-		Port:            int(plan.Port.ValueInt64()),
-		User:            plan.User.ValueString(),
-		Password:        plan.Password.ValueString(),
-		Database:        plan.Database.ValueString(),
-		Table:           plan.Table.ValueString(),
-		TableNamePrefix: plan.TableNamePrefix.ValueString(),
-		IsEnabled:       plan.IsEnabled.ValueBool(),
+		Owner:        plan.Owner.ValueString(),
+		Name:         plan.Name.ValueString(),
+		CreatedTime:  plan.CreatedTime.ValueString(),
+		UseSameDb:    plan.UseSameDb.ValueBool(),
+		Type:         plan.Type.ValueString(),
+		DatabaseType: plan.DatabaseType.ValueString(),
+		Host:         plan.Host.ValueString(),
+		Port:         int(plan.Port.ValueInt64()),
+		User:         plan.User.ValueString(),
+		Password:     plan.Password.ValueString(),
+		Database:     plan.Database.ValueString(),
+		Table:        plan.Table.ValueString(),
 	}
 
 	success, err := r.client.UpdateAdapter(adapter)

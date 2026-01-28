@@ -2,6 +2,8 @@ module github.com/prochac/terraform-provider-casdoor
 
 go 1.25
 
+replace github.com/casdoor/casdoor-go-sdk v1.42.0 => github.com/prochac/casdoor-go-sdk v0.0.0-20260128133958-559fc9bc42b0
+
 require (
 	github.com/casdoor/casdoor-go-sdk v1.42.0
 	github.com/hashicorp/terraform-plugin-framework v1.17.0
@@ -19,7 +21,7 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudflare/circl v1.6.2 // indirect
+	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect

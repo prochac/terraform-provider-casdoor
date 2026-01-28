@@ -318,14 +318,20 @@ func (p *CasdoorProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewApplicationResource,
 		NewCertResource,
 		NewEnforcerResource,
+		NewGroupResource,
 		NewIdpResource,
 		NewLdapResource,
 		NewModelResource,
 		NewOrganizationResource,
 		NewPermissionResource,
+		NewPlanResource,
+		NewPricingResource,
+		NewProductResource,
 		NewRoleResource,
+		NewSyncerResource,
 		NewTokenResource,
 		NewUserResource,
+		NewWebhookResource,
 	}
 }
 

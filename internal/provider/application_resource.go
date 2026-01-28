@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
@@ -44,7 +45,6 @@ type ProviderItemModel struct {
 	CanSignIn types.Bool   `tfsdk:"can_sign_in"`
 	CanUnlink types.Bool   `tfsdk:"can_unlink"`
 	Prompted  types.Bool   `tfsdk:"prompted"`
-	AlertType types.String `tfsdk:"alert_type"`
 	Rule      types.String `tfsdk:"rule"`
 }
 
@@ -97,7 +97,6 @@ func ProviderItemAttrTypes() map[string]attr.Type {
 		"can_sign_in": types.BoolType,
 		"can_unlink":  types.BoolType,
 		"prompted":    types.BoolType,
-		"alert_type":  types.StringType,
 		"rule":        types.StringType,
 	}
 }
@@ -188,15 +187,15 @@ type ApplicationResourceModel struct {
 	IsShared              types.Bool `tfsdk:"is_shared"`
 
 	// OAuth/Token
-	ClientID             types.String `tfsdk:"client_id"`
-	ClientSecret         types.String `tfsdk:"client_secret"`
-	RedirectURIs         types.List   `tfsdk:"redirect_uris"`
-	TokenFormat          types.String `tfsdk:"token_format"`
-	TokenSigningMethod   types.String `tfsdk:"token_signing_method"`
-	TokenFields          types.List   `tfsdk:"token_fields"`
-	ExpireInHours        types.Int64  `tfsdk:"expire_in_hours"`
-	RefreshExpireInHours types.Int64  `tfsdk:"refresh_expire_in_hours"`
-	GrantTypes           types.List   `tfsdk:"grant_types"`
+	ClientID             types.String  `tfsdk:"client_id"`
+	ClientSecret         types.String  `tfsdk:"client_secret"`
+	RedirectURIs         types.List    `tfsdk:"redirect_uris"`
+	TokenFormat          types.String  `tfsdk:"token_format"`
+	TokenSigningMethod   types.String  `tfsdk:"token_signing_method"`
+	TokenFields          types.List    `tfsdk:"token_fields"`
+	ExpireInHours        types.Float64 `tfsdk:"expire_in_hours"`
+	RefreshExpireInHours types.Float64 `tfsdk:"refresh_expire_in_hours"`
+	GrantTypes           types.List    `tfsdk:"grant_types"`
 
 	// SAML
 	SamlReplyUrl   types.String `tfsdk:"saml_reply_url"`
@@ -447,17 +446,17 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 					listplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"expire_in_hours": schema.Int64Attribute{
+			"expire_in_hours": schema.Float64Attribute{
 				Description: "The access token expiration time in hours. Defaults to 168 (7 days).",
 				Optional:    true,
 				Computed:    true,
-				Default:     int64default.StaticInt64(168),
+				Default:     float64default.StaticFloat64(168),
 			},
-			"refresh_expire_in_hours": schema.Int64Attribute{
+			"refresh_expire_in_hours": schema.Float64Attribute{
 				Description: "The refresh token expiration time in hours. Defaults to 168 (7 days).",
 				Optional:    true,
 				Computed:    true,
-				Default:     int64default.StaticInt64(168),
+				Default:     float64default.StaticFloat64(168),
 			},
 			"grant_types": schema.ListAttribute{
 				Description: "The allowed OAuth grant types.",
@@ -721,10 +720,6 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 							Description: "Whether this provider is prompted during login.",
 							Optional:    true,
 						},
-						"alert_type": schema.StringAttribute{
-							Description: "Alert type for the provider.",
-							Optional:    true,
-						},
 						"rule": schema.StringAttribute{
 							Description: "Rule for the provider.",
 							Optional:    true,
@@ -934,7 +929,6 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 				CanSignIn: p.CanSignIn.ValueBool(),
 				CanUnlink: p.CanUnlink.ValueBool(),
 				Prompted:  p.Prompted.ValueBool(),
-				AlertType: p.AlertType.ValueString(),
 				Rule:      p.Rule.ValueString(),
 			})
 		}
@@ -1055,8 +1049,8 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		TokenFormat:             plan.TokenFormat.ValueString(),
 		TokenSigningMethod:      plan.TokenSigningMethod.ValueString(),
 		TokenFields:             tokenFields,
-		ExpireInHours:           int(plan.ExpireInHours.ValueInt64()),
-		RefreshExpireInHours:    int(plan.RefreshExpireInHours.ValueInt64()),
+		ExpireInHours:           plan.ExpireInHours.ValueFloat64(),
+		RefreshExpireInHours:    plan.RefreshExpireInHours.ValueFloat64(),
 		GrantTypes:              grantTypes,
 		SamlReplyUrl:            plan.SamlReplyUrl.ValueString(),
 		SamlAttributes:          samlAttributes,
@@ -1208,7 +1202,6 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 					"can_sign_in": types.BoolValue(p.CanSignIn),
 					"can_unlink":  types.BoolValue(p.CanUnlink),
 					"prompted":    types.BoolValue(p.Prompted),
-					"alert_type":  types.StringValue(p.AlertType),
 					"rule":        types.StringValue(p.Rule),
 				})
 				resp.Diagnostics.Append(diags...)
@@ -1383,8 +1376,8 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	state.ClientSecret = types.StringValue(app.ClientSecret)
 	state.TokenFormat = types.StringValue(app.TokenFormat)
 	state.TokenSigningMethod = types.StringValue(app.TokenSigningMethod)
-	state.ExpireInHours = types.Int64Value(int64(app.ExpireInHours))
-	state.RefreshExpireInHours = types.Int64Value(int64(app.RefreshExpireInHours))
+	state.ExpireInHours = types.Float64Value(app.ExpireInHours)
+	state.RefreshExpireInHours = types.Float64Value(app.RefreshExpireInHours)
 	state.SamlReplyUrl = types.StringValue(app.SamlReplyUrl)
 	state.SignupUrl = types.StringValue(app.SignupUrl)
 	state.SigninUrl = types.StringValue(app.SigninUrl)
@@ -1469,7 +1462,6 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 				"can_sign_in": types.BoolValue(p.CanSignIn),
 				"can_unlink":  types.BoolValue(p.CanUnlink),
 				"prompted":    types.BoolValue(p.Prompted),
-				"alert_type":  types.StringValue(p.AlertType),
 				"rule":        types.StringValue(p.Rule),
 			})
 			resp.Diagnostics.Append(diags...)
@@ -1652,7 +1644,6 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 				CanSignIn: p.CanSignIn.ValueBool(),
 				CanUnlink: p.CanUnlink.ValueBool(),
 				Prompted:  p.Prompted.ValueBool(),
-				AlertType: p.AlertType.ValueString(),
 				Rule:      p.Rule.ValueString(),
 			})
 		}
@@ -1776,8 +1767,8 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 		TokenFormat:             plan.TokenFormat.ValueString(),
 		TokenSigningMethod:      plan.TokenSigningMethod.ValueString(),
 		TokenFields:             tokenFields,
-		ExpireInHours:           int(plan.ExpireInHours.ValueInt64()),
-		RefreshExpireInHours:    int(plan.RefreshExpireInHours.ValueInt64()),
+		ExpireInHours:           plan.ExpireInHours.ValueFloat64(),
+		RefreshExpireInHours:    plan.RefreshExpireInHours.ValueFloat64(),
 		GrantTypes:              grantTypes,
 		SamlReplyUrl:            plan.SamlReplyUrl.ValueString(),
 		SamlAttributes:          samlAttributes,

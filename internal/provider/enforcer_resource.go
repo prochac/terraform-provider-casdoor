@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -34,7 +33,6 @@ type EnforcerResourceModel struct {
 	Description types.String `tfsdk:"description"`
 	Model       types.String `tfsdk:"model"`
 	Adapter     types.String `tfsdk:"adapter"`
-	IsEnabled   types.Bool   `tfsdk:"is_enabled"`
 }
 
 func NewEnforcerResource() resource.Resource {
@@ -85,12 +83,6 @@ func (r *EnforcerResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Computed:    true,
 				Default:     stringdefault.StaticString(""),
 			},
-			"is_enabled": schema.BoolAttribute{
-				Description: "Whether the enforcer is enabled.",
-				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(true),
-			},
 		},
 	}
 }
@@ -127,7 +119,6 @@ func (r *EnforcerResource) Create(ctx context.Context, req resource.CreateReques
 		Description: plan.Description.ValueString(),
 		Model:       plan.Model.ValueString(),
 		Adapter:     plan.Adapter.ValueString(),
-		IsEnabled:   plan.IsEnabled.ValueBool(),
 	}
 
 	success, err := r.client.AddEnforcer(enforcer)
@@ -178,7 +169,6 @@ func (r *EnforcerResource) Read(ctx context.Context, req resource.ReadRequest, r
 	state.Description = types.StringValue(enforcer.Description)
 	state.Model = types.StringValue(enforcer.Model)
 	state.Adapter = types.StringValue(enforcer.Adapter)
-	state.IsEnabled = types.BoolValue(enforcer.IsEnabled)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -198,7 +188,6 @@ func (r *EnforcerResource) Update(ctx context.Context, req resource.UpdateReques
 		Description: plan.Description.ValueString(),
 		Model:       plan.Model.ValueString(),
 		Adapter:     plan.Adapter.ValueString(),
-		IsEnabled:   plan.IsEnabled.ValueBool(),
 	}
 
 	success, err := r.client.UpdateEnforcer(enforcer)

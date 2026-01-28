@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -32,7 +31,6 @@ type ModelResourceModel struct {
 	Name        types.String `tfsdk:"name"`
 	DisplayName types.String `tfsdk:"display_name"`
 	ModelText   types.String `tfsdk:"model_text"`
-	IsEnabled   types.Bool   `tfsdk:"is_enabled"`
 }
 
 func NewModelResource() resource.Resource {
@@ -71,12 +69,6 @@ func (r *ModelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Description: "The Casbin model definition text (PERM format).",
 				Required:    true,
 			},
-			"is_enabled": schema.BoolAttribute{
-				Description: "Whether the model is enabled.",
-				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(true),
-			},
 		},
 	}
 }
@@ -111,7 +103,6 @@ func (r *ModelResource) Create(ctx context.Context, req resource.CreateRequest, 
 		Name:        plan.Name.ValueString(),
 		DisplayName: plan.DisplayName.ValueString(),
 		ModelText:   plan.ModelText.ValueString(),
-		IsEnabled:   plan.IsEnabled.ValueBool(),
 	}
 
 	success, err := r.client.AddModel(model)
@@ -160,7 +151,6 @@ func (r *ModelResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.Name = types.StringValue(model.Name)
 	state.DisplayName = types.StringValue(model.DisplayName)
 	state.ModelText = types.StringValue(model.ModelText)
-	state.IsEnabled = types.BoolValue(model.IsEnabled)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -178,7 +168,6 @@ func (r *ModelResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		Name:        plan.Name.ValueString(),
 		DisplayName: plan.DisplayName.ValueString(),
 		ModelText:   plan.ModelText.ValueString(),
-		IsEnabled:   plan.IsEnabled.ValueBool(),
 	}
 
 	success, err := r.client.UpdateModel(model)

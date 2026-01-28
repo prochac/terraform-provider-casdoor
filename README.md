@@ -70,15 +70,15 @@ resource "casdoor_application" "app" {
 | Token        | ✔️     | casdoor_token        | OAuth tokens                           |
 | Model        | ✔️     | casdoor_model        | Casbin model configuration             |
 | Enforcer     | ✔️     | casdoor_enforcer     | Casbin enforcer                        |
-| Adapter      | ❌      | casdoor_adapter      | Casbin policy storage adapter          |
-| Group        | ❌      | casdoor_group        | User groups                            |
-| Ldap         | ❌      | casdoor_ldap         | LDAP server configuration              |
-| Syncer       | ❌      | casdoor_syncer       | External system synchronization        |
-| Webhook      | ❌      | casdoor_webhook      | Webhook configuration                  |
-| Resource     | ❌      | casdoor_resource     | Protected resources (API endpoints)    |
-| Plan         | ❌      | casdoor_plan         | SaaS: subscription plan definitions    |
-| Pricing      | ❌      | casdoor_pricing      | SaaS: pricing configuration            |
-| Product      | ❌      | casdoor_product      | SaaS: product catalog                  |
+| Adapter      | ✔️     | casdoor_adapter      | Casbin policy storage adapter          |
+| Group        | ✔️     | casdoor_group        | User groups                            |
+| Ldap         | ✔️     | casdoor_ldap         | LDAP server configuration              |
+| Syncer       | ✔️     | casdoor_syncer       | External system synchronization        |
+| Webhook      | ✔️     | casdoor_webhook      | Webhook configuration                  |
+| Plan         | ✔️     | casdoor_plan         | SaaS: subscription plan definitions    |
+| Pricing      | ✔️     | casdoor_pricing      | SaaS: pricing configuration            |
+| Product      | ✔️     | casdoor_product      | SaaS: product catalog                  |
+| Resource     | ❌      | casdoor_resource     | File/blob storage (upload-based API)   |
 
 Legend: ✔️ Implemented ❌ Not Yet Implemented
 
