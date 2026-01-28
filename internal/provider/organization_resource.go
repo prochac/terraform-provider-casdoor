@@ -666,9 +666,31 @@ func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadReques
 	state.PasswordExpireDays = types.Int64Value(int64(org.PasswordExpireDays))
 	state.DefaultAvatar = types.StringValue(org.DefaultAvatar)
 	state.DefaultApplication = types.StringValue(org.DefaultApplication)
-	state.MasterPassword = types.StringValue(org.MasterPassword)
-	state.DefaultPassword = types.StringValue(org.DefaultPassword)
-	state.MasterVerificationCode = types.StringValue(org.MasterVerificationCode)
+	// MasterPassword, DefaultPassword, MasterVerificationCode are always masked
+	// by Casdoor API ("***"). Preserve real values from state; on import (when
+	// state is null) fall back to empty string.
+	if org.MasterPassword == "***" {
+		if state.MasterPassword.IsNull() {
+			state.MasterPassword = types.StringValue("")
+		}
+	} else {
+		state.MasterPassword = types.StringValue(org.MasterPassword)
+	}
+	if org.DefaultPassword == "***" {
+		if state.DefaultPassword.IsNull() {
+			state.DefaultPassword = types.StringValue("")
+		}
+	} else {
+		state.DefaultPassword = types.StringValue(org.DefaultPassword)
+	}
+	if org.MasterVerificationCode == "***" {
+		if state.MasterVerificationCode.IsNull() {
+			state.MasterVerificationCode = types.StringValue("")
+		}
+	} else {
+		state.MasterVerificationCode = types.StringValue(org.MasterVerificationCode)
+	}
+
 	state.IPWhitelist = types.StringValue(org.IpWhitelist)
 	state.InitScore = types.Int64Value(int64(org.InitScore))
 	state.EnableSoftDeletion = types.BoolValue(org.EnableSoftDeletion)

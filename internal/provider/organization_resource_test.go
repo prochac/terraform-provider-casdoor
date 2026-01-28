@@ -155,6 +155,7 @@ func TestAccOrganizationResource_import(t *testing.T) {
 				ImportStateId:                        rName,
 				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "name",
+				ImportStateVerifyIgnore:              []string{"master_password", "default_password", "master_verification_code"},
 			},
 		},
 	})

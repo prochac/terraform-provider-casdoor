@@ -194,6 +194,63 @@ func TestAccApplicationResource_withRedirectURIs(t *testing.T) {
 	})
 }
 
+func TestAccApplicationResource_generatedClientId(t *testing.T) {
+	config := setupTestConfig(t)
+	rName := "tf-test-" + acctest.RandStringFromCharSet(8, acctest.CharSetAlphaNum)
+	resourceName := "casdoor_application.test"
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(config),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccProviderConfig(config) + testAccApplicationResourceConfig(rName, config.OrganizationName, "ClientID Test"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet(resourceName, "client_id"),
+					resource.TestCheckResourceAttrWith(resourceName, "client_id", func(value string) error {
+						if value == "" {
+							return fmt.Errorf("client_id is empty")
+						}
+						if value == "***" {
+							return fmt.Errorf("client_id is masked, got '***'")
+						}
+						t.Logf("Generated client_id: %s", value)
+						return nil
+					}),
+					resource.TestCheckResourceAttrSet(resourceName, "client_secret"),
+					resource.TestCheckResourceAttrWith(resourceName, "client_secret", func(value string) error {
+						if value == "" {
+							return fmt.Errorf("client_secret is empty")
+						}
+						if value == "***" {
+							return fmt.Errorf("client_secret is masked, got '***'")
+						}
+						t.Logf("Generated client_secret: %s", value)
+						return nil
+					}),
+				),
+			},
+			// Verify values persist after refresh (Read doesn't overwrite with "***").
+			{
+				Config: testAccProviderConfig(config) + testAccApplicationResourceConfig(rName, config.OrganizationName, "ClientID Test"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrWith(resourceName, "client_id", func(value string) error {
+						if value == "" || value == "***" {
+							return fmt.Errorf("client_id lost after refresh: %q", value)
+						}
+						return nil
+					}),
+					resource.TestCheckResourceAttrWith(resourceName, "client_secret", func(value string) error {
+						if value == "" || value == "***" {
+							return fmt.Errorf("client_secret lost after refresh: %q", value)
+						}
+						return nil
+					}),
+				),
+			},
+		},
+	})
+}
+
 func testAccApplicationResourceConfig(name, organization, displayName string) string {
 	return fmt.Sprintf(`
 resource "casdoor_application" "test" {

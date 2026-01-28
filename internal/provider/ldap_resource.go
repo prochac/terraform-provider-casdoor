@@ -302,7 +302,10 @@ func (r *LdapResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.EnableSsl = types.BoolValue(ldap.EnableSsl)
 	state.AllowSelfSignedCert = types.BoolValue(ldap.AllowSelfSignedCert)
 	state.Username = types.StringValue(ldap.Username)
-	// Password is write-only and not reliably returned by the API, preserve from state.
+	// Password is always masked by Casdoor API ("***"), preserve from state.
+	if ldap.Password != "***" {
+		state.Password = types.StringValue(ldap.Password)
+	}
 	state.BaseDn = types.StringValue(ldap.BaseDn)
 	state.Filter = types.StringValue(ldap.Filter)
 	state.DefaultGroup = types.StringValue(ldap.DefaultGroup)

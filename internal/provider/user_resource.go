@@ -410,7 +410,10 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.Name = types.StringValue(user.Name)
 	state.ID = types.StringValue(user.Id)
 	state.Type = types.StringValue(user.Type)
-	// Note: Password is not read back from Casdoor for security reasons.
+	// Password is always masked by Casdoor API ("***"), preserve from state.
+	if user.Password != "***" {
+		state.Password = types.StringValue(user.Password)
+	}
 	state.PasswordType = types.StringValue(user.PasswordType)
 	state.DisplayName = types.StringValue(user.DisplayName)
 	state.FirstName = types.StringValue(user.FirstName)
