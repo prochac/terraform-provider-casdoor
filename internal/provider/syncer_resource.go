@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -49,6 +51,13 @@ type SyncerResourceModel struct {
 	User             types.String `tfsdk:"user"`
 	Password         types.String `tfsdk:"password"`
 	DatabaseType     types.String `tfsdk:"database_type"`
+	SslMode          types.String `tfsdk:"ssl_mode"`
+	SshType          types.String `tfsdk:"ssh_type"`
+	SshHost          types.String `tfsdk:"ssh_host"`
+	SshPort          types.Int64  `tfsdk:"ssh_port"`
+	SshUser          types.String `tfsdk:"ssh_user"`
+	SshPassword      types.String `tfsdk:"ssh_password"`
+	Cert             types.String `tfsdk:"cert"`
 	Database         types.String `tfsdk:"database"`
 	Table            types.String `tfsdk:"table"`
 	TableColumns     types.List   `tfsdk:"table_columns"`
@@ -145,6 +154,49 @@ func (r *SyncerResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Computed:    true,
 				Default:     stringdefault.StaticString(""),
 			},
+			"ssl_mode": schema.StringAttribute{
+				Description: "The SSL mode for database connections.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"ssh_type": schema.StringAttribute{
+				Description: "The SSH tunnel type.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"ssh_host": schema.StringAttribute{
+				Description: "The SSH host address.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"ssh_port": schema.Int64Attribute{
+				Description: "The SSH port number.",
+				Optional:    true,
+				Computed:    true,
+				Default:     int64default.StaticInt64(0),
+			},
+			"ssh_user": schema.StringAttribute{
+				Description: "The SSH username.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"ssh_password": schema.StringAttribute{
+				Description: "The SSH password.",
+				Optional:    true,
+				Computed:    true,
+				Sensitive:   true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"cert": schema.StringAttribute{
+				Description: "The certificate for database connections.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
 			"database": schema.StringAttribute{
 				Description: "The database name.",
 				Optional:    true,
@@ -161,6 +213,9 @@ func (r *SyncerResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Description: "The column mappings for synchronization.",
 				Optional:    true,
 				Computed:    true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
@@ -215,6 +270,9 @@ func (r *SyncerResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"error_text": schema.StringAttribute{
 				Description: "Error text from the last sync operation.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"sync_interval": schema.Int64Attribute{
 				Description: "The synchronization interval in seconds.",
@@ -335,9 +393,15 @@ func (r *SyncerResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	syncer := &casdoorsdk.Syncer{
 		Owner:            plan.Owner.ValueString(),
 		Name:             plan.Name.ValueString(),
+		CreatedTime:      createdTime,
 		Organization:     plan.Organization.ValueString(),
 		Type:             plan.Type.ValueString(),
 		Host:             plan.Host.ValueString(),
@@ -345,6 +409,13 @@ func (r *SyncerResource) Create(ctx context.Context, req resource.CreateRequest,
 		User:             plan.User.ValueString(),
 		Password:         plan.Password.ValueString(),
 		DatabaseType:     plan.DatabaseType.ValueString(),
+		SslMode:          plan.SslMode.ValueString(),
+		SshType:          plan.SshType.ValueString(),
+		SshHost:          plan.SshHost.ValueString(),
+		SshPort:          int(plan.SshPort.ValueInt64()),
+		SshUser:          plan.SshUser.ValueString(),
+		SshPassword:      plan.SshPassword.ValueString(),
+		Cert:             plan.Cert.ValueString(),
 		Database:         plan.Database.ValueString(),
 		Table:            plan.Table.ValueString(),
 		TableColumns:     tableColumns,
@@ -475,6 +546,13 @@ func (r *SyncerResource) Update(ctx context.Context, req resource.UpdateRequest,
 		User:             plan.User.ValueString(),
 		Password:         plan.Password.ValueString(),
 		DatabaseType:     plan.DatabaseType.ValueString(),
+		SslMode:          plan.SslMode.ValueString(),
+		SshType:          plan.SshType.ValueString(),
+		SshHost:          plan.SshHost.ValueString(),
+		SshPort:          int(plan.SshPort.ValueInt64()),
+		SshUser:          plan.SshUser.ValueString(),
+		SshPassword:      plan.SshPassword.ValueString(),
+		Cert:             plan.Cert.ValueString(),
 		Database:         plan.Database.ValueString(),
 		Table:            plan.Table.ValueString(),
 		TableColumns:     tableColumns,
@@ -524,19 +602,11 @@ func (r *SyncerResource) Delete(ctx context.Context, req resource.DeleteRequest,
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteSyncer(syncer)
+	_, err := r.client.DeleteSyncer(syncer)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Syncer",
 			fmt.Sprintf("Could not delete syncer %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Syncer",
-			fmt.Sprintf("Casdoor returned failure when deleting syncer %q", state.Name.ValueString()),
 		)
 		return
 	}

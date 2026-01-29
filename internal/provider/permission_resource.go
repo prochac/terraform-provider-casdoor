@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -30,6 +31,7 @@ type PermissionResource struct {
 type PermissionResourceModel struct {
 	Owner        types.String `tfsdk:"owner"`
 	Name         types.String `tfsdk:"name"`
+	CreatedTime  types.String `tfsdk:"created_time"`
 	DisplayName  types.String `tfsdk:"display_name"`
 	Description  types.String `tfsdk:"description"`
 	Users        types.List   `tfsdk:"users"`
@@ -73,6 +75,13 @@ func (r *PermissionResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"created_time": schema.StringAttribute{
+				Description: "The time when the permission was created.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"display_name": schema.StringAttribute{
@@ -224,9 +233,15 @@ func (r *PermissionResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	permission := &casdoorsdk.Permission{
 		Owner:        plan.Owner.ValueString(),
 		Name:         plan.Name.ValueString(),
+		CreatedTime:  createdTime,
 		DisplayName:  plan.DisplayName.ValueString(),
 		Description:  plan.Description.ValueString(),
 		Users:        users,
@@ -261,6 +276,20 @@ func (r *PermissionResource) Create(ctx context.Context, req resource.CreateRequ
 			fmt.Sprintf("Casdoor returned failure when creating permission %q", plan.Name.ValueString()),
 		)
 		return
+	}
+
+	// Read back the permission to get server-generated values like CreatedTime.
+	createdPermission, err := r.client.GetPermission(plan.Name.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Permission",
+			fmt.Sprintf("Could not read permission %q after creation: %s", plan.Name.ValueString(), err),
+		)
+		return
+	}
+
+	if createdPermission != nil {
+		plan.CreatedTime = types.StringValue(createdPermission.CreatedTime)
 	}
 
 	// Set list values to null if empty.
@@ -310,6 +339,7 @@ func (r *PermissionResource) Read(ctx context.Context, req resource.ReadRequest,
 
 	state.Owner = types.StringValue(permission.Owner)
 	state.Name = types.StringValue(permission.Name)
+	state.CreatedTime = types.StringValue(permission.CreatedTime)
 	state.DisplayName = types.StringValue(permission.DisplayName)
 	state.Description = types.StringValue(permission.Description)
 	state.Model = types.StringValue(permission.Model)
@@ -412,6 +442,7 @@ func (r *PermissionResource) Update(ctx context.Context, req resource.UpdateRequ
 	permission := &casdoorsdk.Permission{
 		Owner:        plan.Owner.ValueString(),
 		Name:         plan.Name.ValueString(),
+		CreatedTime:  plan.CreatedTime.ValueString(),
 		DisplayName:  plan.DisplayName.ValueString(),
 		Description:  plan.Description.ValueString(),
 		Users:        users,

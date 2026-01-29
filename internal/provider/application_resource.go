@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -35,17 +36,23 @@ type ApplicationResource struct {
 }
 
 // ProviderItemModel represents a provider item configuration.
-// TODO: The following fields exist in Swagger but not in casdoor-go-sdk (requires SDK PR):
-//   - signupGroup (string)
-//   - countryCodes ([]string)
 type ProviderItemModel struct {
-	Owner     types.String `tfsdk:"owner"`
-	Name      types.String `tfsdk:"name"`
-	CanSignUp types.Bool   `tfsdk:"can_sign_up"`
-	CanSignIn types.Bool   `tfsdk:"can_sign_in"`
-	CanUnlink types.Bool   `tfsdk:"can_unlink"`
-	Prompted  types.Bool   `tfsdk:"prompted"`
-	Rule      types.String `tfsdk:"rule"`
+	Owner        types.String `tfsdk:"owner"`
+	Name         types.String `tfsdk:"name"`
+	CanSignUp    types.Bool   `tfsdk:"can_sign_up"`
+	CanSignIn    types.Bool   `tfsdk:"can_sign_in"`
+	CanUnlink    types.Bool   `tfsdk:"can_unlink"`
+	Prompted     types.Bool   `tfsdk:"prompted"`
+	Rule         types.String `tfsdk:"rule"`
+	SignupGroup  types.String `tfsdk:"signup_group"`
+	CountryCodes types.List   `tfsdk:"country_codes"`
+}
+
+// JwtItemModel represents a JWT item configuration.
+type JwtItemModel struct {
+	Name  types.String `tfsdk:"name"`
+	Value types.String `tfsdk:"value"`
+	Type  types.String `tfsdk:"type"`
 }
 
 // SigninMethodModel represents a signin method configuration.
@@ -91,13 +98,24 @@ type SamlItemModel struct {
 // ProviderItemAttrTypes returns the attribute types for ProviderItemModel.
 func ProviderItemAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
-		"owner":       types.StringType,
-		"name":        types.StringType,
-		"can_sign_up": types.BoolType,
-		"can_sign_in": types.BoolType,
-		"can_unlink":  types.BoolType,
-		"prompted":    types.BoolType,
-		"rule":        types.StringType,
+		"owner":         types.StringType,
+		"name":          types.StringType,
+		"can_sign_up":   types.BoolType,
+		"can_sign_in":   types.BoolType,
+		"can_unlink":    types.BoolType,
+		"prompted":      types.BoolType,
+		"rule":          types.StringType,
+		"signup_group":  types.StringType,
+		"country_codes": types.ListType{ElemType: types.StringType},
+	}
+}
+
+// JwtItemAttrTypes returns the attribute types for JwtItemModel.
+func JwtItemAttrTypes() map[string]attr.Type {
+	return map[string]attr.Type{
+		"name":  types.StringType,
+		"value": types.StringType,
+		"type":  types.StringType,
 	}
 }
 
@@ -150,20 +168,14 @@ func SamlItemAttrTypes() map[string]attr.Type {
 }
 
 // ApplicationResourceModel describes the resource data model.
-// TODO: The following fields exist in Swagger but not in casdoor-go-sdk (requires SDK PR):
-//   - title (string)
-//   - favicon (string)
-//   - samlHashAlgorithm (string)
-//   - codeResendTimeout (int)
-//   - enableExclusiveSignin (bool)
-//   - disableSamlAttributes (bool)
-//   - tokenAttributes ([]*JwtItem)
 type ApplicationResourceModel struct {
 	// Core fields
 	Owner        types.String `tfsdk:"owner"`
 	Name         types.String `tfsdk:"name"`
 	CreatedTime  types.String `tfsdk:"created_time"`
 	DisplayName  types.String `tfsdk:"display_name"`
+	Title        types.String `tfsdk:"title"`
+	Favicon      types.String `tfsdk:"favicon"`
 	Logo         types.String `tfsdk:"logo"`
 	HomepageURL  types.String `tfsdk:"homepage_url"`
 	Description  types.String `tfsdk:"description"`
@@ -172,19 +184,22 @@ type ApplicationResourceModel struct {
 	DefaultGroup types.String `tfsdk:"default_group"`
 
 	// Enable/disable flags
-	EnablePassword        types.Bool `tfsdk:"enable_password"`
-	EnableSignUp          types.Bool `tfsdk:"enable_sign_up"`
-	EnableSigninSession   types.Bool `tfsdk:"enable_signin_session"`
-	EnableAutoSignin      types.Bool `tfsdk:"enable_auto_signin"`
-	EnableCodeSignin      types.Bool `tfsdk:"enable_code_signin"`
-	EnableSamlCompress    types.Bool `tfsdk:"enable_saml_compress"`
-	EnableSamlC14n10      types.Bool `tfsdk:"enable_saml_c14n10"`
-	EnableSamlPostBinding types.Bool `tfsdk:"enable_saml_post_binding"`
-	UseEmailAsSamlNameId  types.Bool `tfsdk:"use_email_as_saml_name_id"`
-	EnableWebAuthn        types.Bool `tfsdk:"enable_web_authn"`
-	EnableLinkWithEmail   types.Bool `tfsdk:"enable_link_with_email"`
-	DisableSignin         types.Bool `tfsdk:"disable_signin"`
-	IsShared              types.Bool `tfsdk:"is_shared"`
+	EnablePassword               types.Bool `tfsdk:"enable_password"`
+	EnableSignUp                 types.Bool `tfsdk:"enable_sign_up"`
+	EnableSigninSession          types.Bool `tfsdk:"enable_signin_session"`
+	EnableAutoSignin             types.Bool `tfsdk:"enable_auto_signin"`
+	EnableCodeSignin             types.Bool `tfsdk:"enable_code_signin"`
+	EnableExclusiveSignin        types.Bool `tfsdk:"enable_exclusive_signin"`
+	EnableSamlCompress           types.Bool `tfsdk:"enable_saml_compress"`
+	EnableSamlC14n10             types.Bool `tfsdk:"enable_saml_c14n10"`
+	EnableSamlPostBinding        types.Bool `tfsdk:"enable_saml_post_binding"`
+	EnableSamlAssertionSignature types.Bool `tfsdk:"enable_saml_assertion_signature"`
+	DisableSamlAttributes        types.Bool `tfsdk:"disable_saml_attributes"`
+	UseEmailAsSamlNameId         types.Bool `tfsdk:"use_email_as_saml_name_id"`
+	EnableWebAuthn               types.Bool `tfsdk:"enable_web_authn"`
+	EnableLinkWithEmail          types.Bool `tfsdk:"enable_link_with_email"`
+	DisableSignin                types.Bool `tfsdk:"disable_signin"`
+	IsShared                     types.Bool `tfsdk:"is_shared"`
 
 	// OAuth/Token
 	ClientID             types.String  `tfsdk:"client_id"`
@@ -193,13 +208,16 @@ type ApplicationResourceModel struct {
 	TokenFormat          types.String  `tfsdk:"token_format"`
 	TokenSigningMethod   types.String  `tfsdk:"token_signing_method"`
 	TokenFields          types.List    `tfsdk:"token_fields"`
+	TokenAttributes      types.List    `tfsdk:"token_attributes"`
 	ExpireInHours        types.Float64 `tfsdk:"expire_in_hours"`
 	RefreshExpireInHours types.Float64 `tfsdk:"refresh_expire_in_hours"`
+	CookieExpireInHours  types.Int64   `tfsdk:"cookie_expire_in_hours"`
 	GrantTypes           types.List    `tfsdk:"grant_types"`
 
 	// SAML
-	SamlReplyUrl   types.String `tfsdk:"saml_reply_url"`
-	SamlAttributes types.List   `tfsdk:"saml_attributes"`
+	SamlReplyUrl      types.String `tfsdk:"saml_reply_url"`
+	SamlHashAlgorithm types.String `tfsdk:"saml_hash_algorithm"`
+	SamlAttributes    types.List   `tfsdk:"saml_attributes"`
 
 	// URLs
 	SignupUrl      types.String `tfsdk:"signup_url"`
@@ -227,6 +245,7 @@ type ApplicationResourceModel struct {
 	FailedSigninFrozenTime types.Int64  `tfsdk:"failed_signin_frozen_time"`
 
 	// Misc
+	CodeResendTimeout    types.Int64  `tfsdk:"code_resend_timeout"`
 	OrgChoiceMode        types.String `tfsdk:"org_choice_mode"`
 	TermsOfUse           types.String `tfsdk:"terms_of_use"`
 	Tags                 types.List   `tfsdk:"tags"`
@@ -281,6 +300,18 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"display_name": schema.StringAttribute{
 				Description: "The display name of the application.",
 				Required:    true,
+			},
+			"title": schema.StringAttribute{
+				Description: "The title of the application.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"favicon": schema.StringAttribute{
+				Description: "The favicon URL of the application.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
 			},
 			"logo": schema.StringAttribute{
 				Description: "The logo URL of the application.",
@@ -351,6 +382,12 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
 			},
+			"enable_exclusive_signin": schema.BoolAttribute{
+				Description: "Whether exclusive signin is enabled.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
 			"enable_saml_compress": schema.BoolAttribute{
 				Description: "Whether SAML response compression is enabled.",
 				Optional:    true,
@@ -365,6 +402,18 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 			},
 			"enable_saml_post_binding": schema.BoolAttribute{
 				Description: "Whether SAML POST binding is enabled.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
+			"enable_saml_assertion_signature": schema.BoolAttribute{
+				Description: "Whether SAML assertion signature is enabled.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
+			"disable_saml_attributes": schema.BoolAttribute{
+				Description: "Whether SAML attributes are disabled.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
@@ -446,6 +495,30 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 					listplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"token_attributes": schema.ListNestedAttribute{
+				Description: "Token attribute mappings.",
+				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "The name of the token attribute.",
+							Required:    true,
+						},
+						"value": schema.StringAttribute{
+							Description: "The value of the token attribute.",
+							Optional:    true,
+						},
+						"type": schema.StringAttribute{
+							Description: "The type of the token attribute.",
+							Optional:    true,
+						},
+					},
+				},
+			},
 			"expire_in_hours": schema.Float64Attribute{
 				Description: "The access token expiration time in hours. Defaults to 168 (7 days).",
 				Optional:    true,
@@ -457,6 +530,12 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Optional:    true,
 				Computed:    true,
 				Default:     float64default.StaticFloat64(168),
+			},
+			"cookie_expire_in_hours": schema.Int64Attribute{
+				Description: "The cookie expiration time in hours.",
+				Optional:    true,
+				Computed:    true,
+				Default:     int64default.StaticInt64(0),
 			},
 			"grant_types": schema.ListAttribute{
 				Description: "The allowed OAuth grant types.",
@@ -471,6 +550,12 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 			// SAML
 			"saml_reply_url": schema.StringAttribute{
 				Description: "The SAML reply URL (Assertion Consumer Service URL).",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"saml_hash_algorithm": schema.StringAttribute{
+				Description: "The SAML hash algorithm.",
 				Optional:    true,
 				Computed:    true,
 				Default:     stringdefault.StaticString(""),
@@ -645,6 +730,12 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 			},
 
 			// Misc
+			"code_resend_timeout": schema.Int64Attribute{
+				Description: "The code resend timeout in seconds.",
+				Optional:    true,
+				Computed:    true,
+				Default:     int64default.StaticInt64(0),
+			},
 			"org_choice_mode": schema.StringAttribute{
 				Description: "Organization choice mode for multi-org applications.",
 				Optional:    true,
@@ -723,6 +814,15 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 						"rule": schema.StringAttribute{
 							Description: "Rule for the provider.",
 							Optional:    true,
+						},
+						"signup_group": schema.StringAttribute{
+							Description: "The signup group for the provider.",
+							Optional:    true,
+						},
+						"country_codes": schema.ListAttribute{
+							Description: "Country codes for the provider.",
+							Optional:    true,
+							ElementType: types.StringType,
 						},
 					},
 				},
@@ -922,14 +1022,20 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 			return
 		}
 		for _, p := range providerModels {
+			var countryCodes []string
+			if !p.CountryCodes.IsNull() {
+				resp.Diagnostics.Append(p.CountryCodes.ElementsAs(ctx, &countryCodes, false)...)
+			}
 			providers = append(providers, &casdoorsdk.ProviderItem{
-				Owner:     p.Owner.ValueString(),
-				Name:      p.Name.ValueString(),
-				CanSignUp: p.CanSignUp.ValueBool(),
-				CanSignIn: p.CanSignIn.ValueBool(),
-				CanUnlink: p.CanUnlink.ValueBool(),
-				Prompted:  p.Prompted.ValueBool(),
-				Rule:      p.Rule.ValueString(),
+				Owner:        p.Owner.ValueString(),
+				Name:         p.Name.ValueString(),
+				CanSignUp:    p.CanSignUp.ValueBool(),
+				CanSignIn:    p.CanSignIn.ValueBool(),
+				CanUnlink:    p.CanUnlink.ValueBool(),
+				Prompted:     p.Prompted.ValueBool(),
+				Rule:         p.Rule.ValueString(),
+				SignupGroup:  p.SignupGroup.ValueString(),
+				CountryCodes: countryCodes,
 			})
 		}
 	}
@@ -1018,70 +1124,102 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		}
 	}
 
+	// Convert token attributes
+	var tokenAttributes []*casdoorsdk.JwtItem
+	if !plan.TokenAttributes.IsNull() && !plan.TokenAttributes.IsUnknown() {
+		var jwtModels []JwtItemModel
+		resp.Diagnostics.Append(plan.TokenAttributes.ElementsAs(ctx, &jwtModels, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		for _, j := range jwtModels {
+			tokenAttributes = append(tokenAttributes, &casdoorsdk.JwtItem{
+				Name:  j.Name.ValueString(),
+				Value: j.Value.ValueString(),
+				Type:  j.Type.ValueString(),
+			})
+		}
+	}
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	app := &casdoorsdk.Application{
-		Owner:                   plan.Owner.ValueString(),
-		Name:                    plan.Name.ValueString(),
-		DisplayName:             plan.DisplayName.ValueString(),
-		Logo:                    plan.Logo.ValueString(),
-		HomepageUrl:             plan.HomepageURL.ValueString(),
-		Description:             plan.Description.ValueString(),
-		Organization:            plan.Organization.ValueString(),
-		Cert:                    plan.Cert.ValueString(),
-		DefaultGroup:            plan.DefaultGroup.ValueString(),
-		EnablePassword:          plan.EnablePassword.ValueBool(),
-		EnableSignUp:            plan.EnableSignUp.ValueBool(),
-		EnableSigninSession:     plan.EnableSigninSession.ValueBool(),
-		EnableAutoSignin:        plan.EnableAutoSignin.ValueBool(),
-		EnableCodeSignin:        plan.EnableCodeSignin.ValueBool(),
-		EnableSamlCompress:      plan.EnableSamlCompress.ValueBool(),
-		EnableSamlC14n10:        plan.EnableSamlC14n10.ValueBool(),
-		EnableSamlPostBinding:   plan.EnableSamlPostBinding.ValueBool(),
-		UseEmailAsSamlNameId:    plan.UseEmailAsSamlNameId.ValueBool(),
-		EnableWebAuthn:          plan.EnableWebAuthn.ValueBool(),
-		EnableLinkWithEmail:     plan.EnableLinkWithEmail.ValueBool(),
-		DisableSignin:           plan.DisableSignin.ValueBool(),
-		IsShared:                plan.IsShared.ValueBool(),
-		RedirectUris:            redirectURIs,
-		TokenFormat:             plan.TokenFormat.ValueString(),
-		TokenSigningMethod:      plan.TokenSigningMethod.ValueString(),
-		TokenFields:             tokenFields,
-		ExpireInHours:           plan.ExpireInHours.ValueFloat64(),
-		RefreshExpireInHours:    plan.RefreshExpireInHours.ValueFloat64(),
-		GrantTypes:              grantTypes,
-		SamlReplyUrl:            plan.SamlReplyUrl.ValueString(),
-		SamlAttributes:          samlAttributes,
-		SignupUrl:               plan.SignupUrl.ValueString(),
-		SigninUrl:               plan.SigninUrl.ValueString(),
-		ForgetUrl:               plan.ForgetUrl.ValueString(),
-		AffiliationUrl:          plan.AffiliationUrl.ValueString(),
-		HeaderHtml:              plan.HeaderHtml.ValueString(),
-		FooterHtml:              plan.FooterHtml.ValueString(),
-		SignupHtml:              plan.SignupHtml.ValueString(),
-		SigninHtml:              plan.SigninHtml.ValueString(),
-		FormCss:                 plan.FormCss.ValueString(),
-		FormCssMobile:           plan.FormCssMobile.ValueString(),
-		FormOffset:              int(plan.FormOffset.ValueInt64()),
-		FormSideHtml:            plan.FormSideHtml.ValueString(),
-		FormBackgroundUrl:       plan.FormBackgroundUrl.ValueString(),
-		FormBackgroundUrlMobile: plan.FormBackgroundUrlMobile.ValueString(),
-		ThemeData:               themeData,
-		IpRestriction:           plan.IpRestriction.ValueString(),
-		IpWhitelist:             plan.IpWhitelist.ValueString(),
-		FailedSigninLimit:       int(plan.FailedSigninLimit.ValueInt64()),
-		FailedSigninFrozenTime:  int(plan.FailedSigninFrozenTime.ValueInt64()),
-		OrgChoiceMode:           plan.OrgChoiceMode.ValueString(),
-		TermsOfUse:              plan.TermsOfUse.ValueString(),
-		Tags:                    tags,
-		ForcedRedirectOrigin:    plan.ForcedRedirectOrigin.ValueString(),
-		Order:                   int(plan.Order.ValueInt64()),
-		Providers:               providers,
-		SigninMethods:           signinMethods,
-		SignupItems:             signupItems,
-		SigninItems:             signinItems,
+		Owner:                        plan.Owner.ValueString(),
+		Name:                         plan.Name.ValueString(),
+		CreatedTime:                  createdTime,
+		DisplayName:                  plan.DisplayName.ValueString(),
+		Title:                        plan.Title.ValueString(),
+		Favicon:                      plan.Favicon.ValueString(),
+		Logo:                         plan.Logo.ValueString(),
+		HomepageUrl:                  plan.HomepageURL.ValueString(),
+		Description:                  plan.Description.ValueString(),
+		Organization:                 plan.Organization.ValueString(),
+		Cert:                         plan.Cert.ValueString(),
+		DefaultGroup:                 plan.DefaultGroup.ValueString(),
+		EnablePassword:               plan.EnablePassword.ValueBool(),
+		EnableSignUp:                 plan.EnableSignUp.ValueBool(),
+		EnableSigninSession:          plan.EnableSigninSession.ValueBool(),
+		EnableAutoSignin:             plan.EnableAutoSignin.ValueBool(),
+		EnableCodeSignin:             plan.EnableCodeSignin.ValueBool(),
+		EnableExclusiveSignin:        plan.EnableExclusiveSignin.ValueBool(),
+		EnableSamlCompress:           plan.EnableSamlCompress.ValueBool(),
+		EnableSamlC14n10:             plan.EnableSamlC14n10.ValueBool(),
+		EnableSamlPostBinding:        plan.EnableSamlPostBinding.ValueBool(),
+		EnableSamlAssertionSignature: plan.EnableSamlAssertionSignature.ValueBool(),
+		DisableSamlAttributes:        plan.DisableSamlAttributes.ValueBool(),
+		UseEmailAsSamlNameId:         plan.UseEmailAsSamlNameId.ValueBool(),
+		EnableWebAuthn:               plan.EnableWebAuthn.ValueBool(),
+		EnableLinkWithEmail:          plan.EnableLinkWithEmail.ValueBool(),
+		DisableSignin:                plan.DisableSignin.ValueBool(),
+		IsShared:                     plan.IsShared.ValueBool(),
+		RedirectUris:                 redirectURIs,
+		TokenFormat:                  plan.TokenFormat.ValueString(),
+		TokenSigningMethod:           plan.TokenSigningMethod.ValueString(),
+		TokenFields:                  tokenFields,
+		TokenAttributes:              tokenAttributes,
+		ExpireInHours:                plan.ExpireInHours.ValueFloat64(),
+		RefreshExpireInHours:         plan.RefreshExpireInHours.ValueFloat64(),
+		CookieExpireInHours:          plan.CookieExpireInHours.ValueInt64(),
+		GrantTypes:                   grantTypes,
+		SamlReplyUrl:                 plan.SamlReplyUrl.ValueString(),
+		SamlHashAlgorithm:            plan.SamlHashAlgorithm.ValueString(),
+		SamlAttributes:               samlAttributes,
+		SignupUrl:                    plan.SignupUrl.ValueString(),
+		SigninUrl:                    plan.SigninUrl.ValueString(),
+		ForgetUrl:                    plan.ForgetUrl.ValueString(),
+		AffiliationUrl:               plan.AffiliationUrl.ValueString(),
+		HeaderHtml:                   plan.HeaderHtml.ValueString(),
+		FooterHtml:                   plan.FooterHtml.ValueString(),
+		SignupHtml:                   plan.SignupHtml.ValueString(),
+		SigninHtml:                   plan.SigninHtml.ValueString(),
+		FormCss:                      plan.FormCss.ValueString(),
+		FormCssMobile:                plan.FormCssMobile.ValueString(),
+		FormOffset:                   int(plan.FormOffset.ValueInt64()),
+		FormSideHtml:                 plan.FormSideHtml.ValueString(),
+		FormBackgroundUrl:            plan.FormBackgroundUrl.ValueString(),
+		FormBackgroundUrlMobile:      plan.FormBackgroundUrlMobile.ValueString(),
+		ThemeData:                    themeData,
+		IpRestriction:                plan.IpRestriction.ValueString(),
+		IpWhitelist:                  plan.IpWhitelist.ValueString(),
+		FailedSigninLimit:            int(plan.FailedSigninLimit.ValueInt64()),
+		FailedSigninFrozenTime:       int(plan.FailedSigninFrozenTime.ValueInt64()),
+		CodeResendTimeout:            int(plan.CodeResendTimeout.ValueInt64()),
+		OrgChoiceMode:                plan.OrgChoiceMode.ValueString(),
+		TermsOfUse:                   plan.TermsOfUse.ValueString(),
+		Tags:                         tags,
+		ForcedRedirectOrigin:         plan.ForcedRedirectOrigin.ValueString(),
+		Order:                        int(plan.Order.ValueInt64()),
+		Providers:                    providers,
+		SigninMethods:                signinMethods,
+		SignupItems:                  signupItems,
+		SigninItems:                  signinItems,
 	}
 
 	success, err := r.client.AddApplication(app)
@@ -1319,6 +1457,27 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		}
 	}
 
+	// TokenAttributes
+	if plan.TokenAttributes.IsUnknown() {
+		if len(createdApp.TokenAttributes) > 0 {
+			jwtObjList := make([]attr.Value, 0, len(createdApp.TokenAttributes))
+			for _, j := range createdApp.TokenAttributes {
+				jwtObj, diags := types.ObjectValue(JwtItemAttrTypes(), map[string]attr.Value{
+					"name":  types.StringValue(j.Name),
+					"value": types.StringValue(j.Value),
+					"type":  types.StringValue(j.Type),
+				})
+				resp.Diagnostics.Append(diags...)
+				jwtObjList = append(jwtObjList, jwtObj)
+			}
+			jwtList, diags := types.ListValue(types.ObjectType{AttrTypes: JwtItemAttrTypes()}, jwtObjList)
+			resp.Diagnostics.Append(diags...)
+			plan.TokenAttributes = jwtList
+		} else {
+			plan.TokenAttributes = types.ListNull(types.ObjectType{AttrTypes: JwtItemAttrTypes()})
+		}
+	}
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -1353,6 +1512,8 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	state.Name = types.StringValue(app.Name)
 	state.CreatedTime = types.StringValue(app.CreatedTime)
 	state.DisplayName = types.StringValue(app.DisplayName)
+	state.Title = types.StringValue(app.Title)
+	state.Favicon = types.StringValue(app.Favicon)
 	state.Logo = types.StringValue(app.Logo)
 	state.HomepageURL = types.StringValue(app.HomepageUrl)
 	state.Description = types.StringValue(app.Description)
@@ -1364,9 +1525,12 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	state.EnableSigninSession = types.BoolValue(app.EnableSigninSession)
 	state.EnableAutoSignin = types.BoolValue(app.EnableAutoSignin)
 	state.EnableCodeSignin = types.BoolValue(app.EnableCodeSignin)
+	state.EnableExclusiveSignin = types.BoolValue(app.EnableExclusiveSignin)
 	state.EnableSamlCompress = types.BoolValue(app.EnableSamlCompress)
 	state.EnableSamlC14n10 = types.BoolValue(app.EnableSamlC14n10)
 	state.EnableSamlPostBinding = types.BoolValue(app.EnableSamlPostBinding)
+	state.EnableSamlAssertionSignature = types.BoolValue(app.EnableSamlAssertionSignature)
+	state.DisableSamlAttributes = types.BoolValue(app.DisableSamlAttributes)
 	state.UseEmailAsSamlNameId = types.BoolValue(app.UseEmailAsSamlNameId)
 	state.EnableWebAuthn = types.BoolValue(app.EnableWebAuthn)
 	state.EnableLinkWithEmail = types.BoolValue(app.EnableLinkWithEmail)
@@ -1378,7 +1542,9 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	state.TokenSigningMethod = types.StringValue(app.TokenSigningMethod)
 	state.ExpireInHours = types.Float64Value(app.ExpireInHours)
 	state.RefreshExpireInHours = types.Float64Value(app.RefreshExpireInHours)
+	state.CookieExpireInHours = types.Int64Value(app.CookieExpireInHours)
 	state.SamlReplyUrl = types.StringValue(app.SamlReplyUrl)
+	state.SamlHashAlgorithm = types.StringValue(app.SamlHashAlgorithm)
 	state.SignupUrl = types.StringValue(app.SignupUrl)
 	state.SigninUrl = types.StringValue(app.SigninUrl)
 	state.ForgetUrl = types.StringValue(app.ForgetUrl)
@@ -1397,6 +1563,7 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	state.IpWhitelist = types.StringValue(app.IpWhitelist)
 	state.FailedSigninLimit = types.Int64Value(int64(app.FailedSigninLimit))
 	state.FailedSigninFrozenTime = types.Int64Value(int64(app.FailedSigninFrozenTime))
+	state.CodeResendTimeout = types.Int64Value(int64(app.CodeResendTimeout))
 	state.OrgChoiceMode = types.StringValue(app.OrgChoiceMode)
 	state.TermsOfUse = types.StringValue(app.TermsOfUse)
 	state.CertPublicKey = types.StringValue(app.CertPublicKey)
@@ -1455,14 +1622,24 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	if len(app.Providers) > 0 {
 		providerObjList := make([]attr.Value, 0, len(app.Providers))
 		for _, p := range app.Providers {
+			var countryCodes basetypes.ListValue
+			if len(p.CountryCodes) > 0 {
+				ccList, ccDiags := types.ListValueFrom(ctx, types.StringType, p.CountryCodes)
+				resp.Diagnostics.Append(ccDiags...)
+				countryCodes = ccList
+			} else {
+				countryCodes = types.ListNull(types.StringType)
+			}
 			providerObj, diags := types.ObjectValue(ProviderItemAttrTypes(), map[string]attr.Value{
-				"owner":       types.StringValue(p.Owner),
-				"name":        types.StringValue(p.Name),
-				"can_sign_up": types.BoolValue(p.CanSignUp),
-				"can_sign_in": types.BoolValue(p.CanSignIn),
-				"can_unlink":  types.BoolValue(p.CanUnlink),
-				"prompted":    types.BoolValue(p.Prompted),
-				"rule":        types.StringValue(p.Rule),
+				"owner":         types.StringValue(p.Owner),
+				"name":          types.StringValue(p.Name),
+				"can_sign_up":   types.BoolValue(p.CanSignUp),
+				"can_sign_in":   types.BoolValue(p.CanSignIn),
+				"can_unlink":    types.BoolValue(p.CanUnlink),
+				"prompted":      types.BoolValue(p.Prompted),
+				"rule":          types.StringValue(p.Rule),
+				"signup_group":  types.StringValue(p.SignupGroup),
+				"country_codes": countryCodes,
 			})
 			resp.Diagnostics.Append(diags...)
 			providerObjList = append(providerObjList, providerObj)
@@ -1570,6 +1747,25 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 		state.SamlAttributes = types.ListNull(types.ObjectType{AttrTypes: SamlItemAttrTypes()})
 	}
 
+	// Convert TokenAttributes to list of objects
+	if len(app.TokenAttributes) > 0 {
+		jwtObjList := make([]attr.Value, 0, len(app.TokenAttributes))
+		for _, j := range app.TokenAttributes {
+			jwtObj, diags := types.ObjectValue(JwtItemAttrTypes(), map[string]attr.Value{
+				"name":  types.StringValue(j.Name),
+				"value": types.StringValue(j.Value),
+				"type":  types.StringValue(j.Type),
+			})
+			resp.Diagnostics.Append(diags...)
+			jwtObjList = append(jwtObjList, jwtObj)
+		}
+		jwtList, diags := types.ListValue(types.ObjectType{AttrTypes: JwtItemAttrTypes()}, jwtObjList)
+		resp.Diagnostics.Append(diags...)
+		state.TokenAttributes = jwtList
+	} else {
+		state.TokenAttributes = types.ListNull(types.ObjectType{AttrTypes: JwtItemAttrTypes()})
+	}
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -1637,14 +1833,20 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 			return
 		}
 		for _, p := range providerModels {
+			var countryCodes []string
+			if !p.CountryCodes.IsNull() {
+				resp.Diagnostics.Append(p.CountryCodes.ElementsAs(ctx, &countryCodes, false)...)
+			}
 			providers = append(providers, &casdoorsdk.ProviderItem{
-				Owner:     p.Owner.ValueString(),
-				Name:      p.Name.ValueString(),
-				CanSignUp: p.CanSignUp.ValueBool(),
-				CanSignIn: p.CanSignIn.ValueBool(),
-				CanUnlink: p.CanUnlink.ValueBool(),
-				Prompted:  p.Prompted.ValueBool(),
-				Rule:      p.Rule.ValueString(),
+				Owner:        p.Owner.ValueString(),
+				Name:         p.Name.ValueString(),
+				CanSignUp:    p.CanSignUp.ValueBool(),
+				CanSignIn:    p.CanSignIn.ValueBool(),
+				CanUnlink:    p.CanUnlink.ValueBool(),
+				Prompted:     p.Prompted.ValueBool(),
+				Rule:         p.Rule.ValueString(),
+				SignupGroup:  p.SignupGroup.ValueString(),
+				CountryCodes: countryCodes,
 			})
 		}
 	}
@@ -1733,73 +1935,99 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 		}
 	}
 
+	// Convert token attributes
+	var tokenAttributes []*casdoorsdk.JwtItem
+	if !plan.TokenAttributes.IsNull() && !plan.TokenAttributes.IsUnknown() {
+		var jwtModels []JwtItemModel
+		resp.Diagnostics.Append(plan.TokenAttributes.ElementsAs(ctx, &jwtModels, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		for _, j := range jwtModels {
+			tokenAttributes = append(tokenAttributes, &casdoorsdk.JwtItem{
+				Name:  j.Name.ValueString(),
+				Value: j.Value.ValueString(),
+				Type:  j.Type.ValueString(),
+			})
+		}
+	}
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	app := &casdoorsdk.Application{
-		Owner:                   plan.Owner.ValueString(),
-		Name:                    plan.Name.ValueString(),
-		CreatedTime:             state.CreatedTime.ValueString(),
-		DisplayName:             plan.DisplayName.ValueString(),
-		Logo:                    plan.Logo.ValueString(),
-		HomepageUrl:             plan.HomepageURL.ValueString(),
-		Description:             plan.Description.ValueString(),
-		Organization:            plan.Organization.ValueString(),
-		Cert:                    plan.Cert.ValueString(),
-		DefaultGroup:            plan.DefaultGroup.ValueString(),
-		EnablePassword:          plan.EnablePassword.ValueBool(),
-		EnableSignUp:            plan.EnableSignUp.ValueBool(),
-		EnableSigninSession:     plan.EnableSigninSession.ValueBool(),
-		EnableAutoSignin:        plan.EnableAutoSignin.ValueBool(),
-		EnableCodeSignin:        plan.EnableCodeSignin.ValueBool(),
-		EnableSamlCompress:      plan.EnableSamlCompress.ValueBool(),
-		EnableSamlC14n10:        plan.EnableSamlC14n10.ValueBool(),
-		EnableSamlPostBinding:   plan.EnableSamlPostBinding.ValueBool(),
-		UseEmailAsSamlNameId:    plan.UseEmailAsSamlNameId.ValueBool(),
-		EnableWebAuthn:          plan.EnableWebAuthn.ValueBool(),
-		EnableLinkWithEmail:     plan.EnableLinkWithEmail.ValueBool(),
-		DisableSignin:           plan.DisableSignin.ValueBool(),
-		IsShared:                plan.IsShared.ValueBool(),
-		ClientId:                state.ClientID.ValueString(),
-		ClientSecret:            state.ClientSecret.ValueString(),
-		RedirectUris:            redirectURIs,
-		TokenFormat:             plan.TokenFormat.ValueString(),
-		TokenSigningMethod:      plan.TokenSigningMethod.ValueString(),
-		TokenFields:             tokenFields,
-		ExpireInHours:           plan.ExpireInHours.ValueFloat64(),
-		RefreshExpireInHours:    plan.RefreshExpireInHours.ValueFloat64(),
-		GrantTypes:              grantTypes,
-		SamlReplyUrl:            plan.SamlReplyUrl.ValueString(),
-		SamlAttributes:          samlAttributes,
-		SignupUrl:               plan.SignupUrl.ValueString(),
-		SigninUrl:               plan.SigninUrl.ValueString(),
-		ForgetUrl:               plan.ForgetUrl.ValueString(),
-		AffiliationUrl:          plan.AffiliationUrl.ValueString(),
-		HeaderHtml:              plan.HeaderHtml.ValueString(),
-		FooterHtml:              plan.FooterHtml.ValueString(),
-		SignupHtml:              plan.SignupHtml.ValueString(),
-		SigninHtml:              plan.SigninHtml.ValueString(),
-		FormCss:                 plan.FormCss.ValueString(),
-		FormCssMobile:           plan.FormCssMobile.ValueString(),
-		FormOffset:              int(plan.FormOffset.ValueInt64()),
-		FormSideHtml:            plan.FormSideHtml.ValueString(),
-		FormBackgroundUrl:       plan.FormBackgroundUrl.ValueString(),
-		FormBackgroundUrlMobile: plan.FormBackgroundUrlMobile.ValueString(),
-		ThemeData:               themeData,
-		IpRestriction:           plan.IpRestriction.ValueString(),
-		IpWhitelist:             plan.IpWhitelist.ValueString(),
-		FailedSigninLimit:       int(plan.FailedSigninLimit.ValueInt64()),
-		FailedSigninFrozenTime:  int(plan.FailedSigninFrozenTime.ValueInt64()),
-		OrgChoiceMode:           plan.OrgChoiceMode.ValueString(),
-		TermsOfUse:              plan.TermsOfUse.ValueString(),
-		Tags:                    tags,
-		ForcedRedirectOrigin:    plan.ForcedRedirectOrigin.ValueString(),
-		Order:                   int(plan.Order.ValueInt64()),
-		Providers:               providers,
-		SigninMethods:           signinMethods,
-		SignupItems:             signupItems,
-		SigninItems:             signinItems,
+		Owner:                        plan.Owner.ValueString(),
+		Name:                         plan.Name.ValueString(),
+		CreatedTime:                  state.CreatedTime.ValueString(),
+		DisplayName:                  plan.DisplayName.ValueString(),
+		Title:                        plan.Title.ValueString(),
+		Favicon:                      plan.Favicon.ValueString(),
+		Logo:                         plan.Logo.ValueString(),
+		HomepageUrl:                  plan.HomepageURL.ValueString(),
+		Description:                  plan.Description.ValueString(),
+		Organization:                 plan.Organization.ValueString(),
+		Cert:                         plan.Cert.ValueString(),
+		DefaultGroup:                 plan.DefaultGroup.ValueString(),
+		EnablePassword:               plan.EnablePassword.ValueBool(),
+		EnableSignUp:                 plan.EnableSignUp.ValueBool(),
+		EnableSigninSession:          plan.EnableSigninSession.ValueBool(),
+		EnableAutoSignin:             plan.EnableAutoSignin.ValueBool(),
+		EnableCodeSignin:             plan.EnableCodeSignin.ValueBool(),
+		EnableExclusiveSignin:        plan.EnableExclusiveSignin.ValueBool(),
+		EnableSamlCompress:           plan.EnableSamlCompress.ValueBool(),
+		EnableSamlC14n10:             plan.EnableSamlC14n10.ValueBool(),
+		EnableSamlPostBinding:        plan.EnableSamlPostBinding.ValueBool(),
+		EnableSamlAssertionSignature: plan.EnableSamlAssertionSignature.ValueBool(),
+		DisableSamlAttributes:        plan.DisableSamlAttributes.ValueBool(),
+		UseEmailAsSamlNameId:         plan.UseEmailAsSamlNameId.ValueBool(),
+		EnableWebAuthn:               plan.EnableWebAuthn.ValueBool(),
+		EnableLinkWithEmail:          plan.EnableLinkWithEmail.ValueBool(),
+		DisableSignin:                plan.DisableSignin.ValueBool(),
+		IsShared:                     plan.IsShared.ValueBool(),
+		ClientId:                     state.ClientID.ValueString(),
+		ClientSecret:                 state.ClientSecret.ValueString(),
+		RedirectUris:                 redirectURIs,
+		TokenFormat:                  plan.TokenFormat.ValueString(),
+		TokenSigningMethod:           plan.TokenSigningMethod.ValueString(),
+		TokenFields:                  tokenFields,
+		TokenAttributes:              tokenAttributes,
+		ExpireInHours:                plan.ExpireInHours.ValueFloat64(),
+		RefreshExpireInHours:         plan.RefreshExpireInHours.ValueFloat64(),
+		CookieExpireInHours:          plan.CookieExpireInHours.ValueInt64(),
+		GrantTypes:                   grantTypes,
+		SamlReplyUrl:                 plan.SamlReplyUrl.ValueString(),
+		SamlHashAlgorithm:            plan.SamlHashAlgorithm.ValueString(),
+		SamlAttributes:               samlAttributes,
+		SignupUrl:                    plan.SignupUrl.ValueString(),
+		SigninUrl:                    plan.SigninUrl.ValueString(),
+		ForgetUrl:                    plan.ForgetUrl.ValueString(),
+		AffiliationUrl:               plan.AffiliationUrl.ValueString(),
+		HeaderHtml:                   plan.HeaderHtml.ValueString(),
+		FooterHtml:                   plan.FooterHtml.ValueString(),
+		SignupHtml:                   plan.SignupHtml.ValueString(),
+		SigninHtml:                   plan.SigninHtml.ValueString(),
+		FormCss:                      plan.FormCss.ValueString(),
+		FormCssMobile:                plan.FormCssMobile.ValueString(),
+		FormOffset:                   int(plan.FormOffset.ValueInt64()),
+		FormSideHtml:                 plan.FormSideHtml.ValueString(),
+		FormBackgroundUrl:            plan.FormBackgroundUrl.ValueString(),
+		FormBackgroundUrlMobile:      plan.FormBackgroundUrlMobile.ValueString(),
+		ThemeData:                    themeData,
+		IpRestriction:                plan.IpRestriction.ValueString(),
+		IpWhitelist:                  plan.IpWhitelist.ValueString(),
+		FailedSigninLimit:            int(plan.FailedSigninLimit.ValueInt64()),
+		FailedSigninFrozenTime:       int(plan.FailedSigninFrozenTime.ValueInt64()),
+		CodeResendTimeout:            int(plan.CodeResendTimeout.ValueInt64()),
+		OrgChoiceMode:                plan.OrgChoiceMode.ValueString(),
+		TermsOfUse:                   plan.TermsOfUse.ValueString(),
+		Tags:                         tags,
+		ForcedRedirectOrigin:         plan.ForcedRedirectOrigin.ValueString(),
+		Order:                        int(plan.Order.ValueInt64()),
+		Providers:                    providers,
+		SigninMethods:                signinMethods,
+		SignupItems:                  signupItems,
+		SigninItems:                  signinItems,
 	}
 
 	success, err := r.client.UpdateApplication(app)
@@ -1840,6 +2068,9 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 	if len(samlAttributes) == 0 {
 		plan.SamlAttributes = types.ListNull(types.ObjectType{AttrTypes: SamlItemAttrTypes()})
+	}
+	if len(tokenAttributes) == 0 {
+		plan.TokenAttributes = types.ListNull(types.ObjectType{AttrTypes: JwtItemAttrTypes()})
 	}
 	if len(providers) == 0 {
 		plan.Providers = types.ListNull(types.ObjectType{AttrTypes: ProviderItemAttrTypes()})

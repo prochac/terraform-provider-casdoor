@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
@@ -85,44 +87,49 @@ func ThemeDataAttrTypes() map[string]attr.Type {
 }
 
 type OrganizationResourceModel struct {
-	Owner                  types.String `tfsdk:"owner"`
-	Name                   types.String `tfsdk:"name"`
-	CreatedTime            types.String `tfsdk:"created_time"`
-	DisplayName            types.String `tfsdk:"display_name"`
-	WebsiteURL             types.String `tfsdk:"website_url"`
-	Logo                   types.String `tfsdk:"logo"`
-	LogoDark               types.String `tfsdk:"logo_dark"`
-	Favicon                types.String `tfsdk:"favicon"`
-	HasPrivilegeConsent    types.Bool   `tfsdk:"has_privilege_consent"`
-	PasswordType           types.String `tfsdk:"password_type"`
-	PasswordSalt           types.String `tfsdk:"password_salt"`
-	PasswordOptions        types.List   `tfsdk:"password_options"`
-	PasswordObfuscatorType types.String `tfsdk:"password_obfuscator_type"`
-	PasswordObfuscatorKey  types.String `tfsdk:"password_obfuscator_key"`
-	PasswordExpireDays     types.Int64  `tfsdk:"password_expire_days"`
-	CountryCodes           types.List   `tfsdk:"country_codes"`
-	DefaultAvatar          types.String `tfsdk:"default_avatar"`
-	DefaultApplication     types.String `tfsdk:"default_application"`
-	UserTypes              types.List   `tfsdk:"user_types"`
-	Tags                   types.List   `tfsdk:"tags"`
-	Languages              types.List   `tfsdk:"languages"`
-	ThemeData              types.Object `tfsdk:"theme_data"`
-	MasterPassword         types.String `tfsdk:"master_password"`
-	DefaultPassword        types.String `tfsdk:"default_password"`
-	MasterVerificationCode types.String `tfsdk:"master_verification_code"`
-	IPWhitelist            types.String `tfsdk:"ip_whitelist"`
-	InitScore              types.Int64  `tfsdk:"init_score"`
-	EnableSoftDeletion     types.Bool   `tfsdk:"enable_soft_deletion"`
-	IsProfilePublic        types.Bool   `tfsdk:"is_profile_public"`
-	UseEmailAsUsername     types.Bool   `tfsdk:"use_email_as_username"`
-	EnableTour             types.Bool   `tfsdk:"enable_tour"`
-	DisableSignin          types.Bool   `tfsdk:"disable_signin"`
-	IPRestriction          types.String `tfsdk:"ip_restriction"`
-	NavItems               types.List   `tfsdk:"nav_items"`
-	WidgetItems            types.List   `tfsdk:"widget_items"`
-	MfaItems               types.List   `tfsdk:"mfa_items"`
-	MfaRememberInHours     types.Int64  `tfsdk:"mfa_remember_in_hours"`
-	AccountItems           types.List   `tfsdk:"account_items"`
+	Owner                  types.String  `tfsdk:"owner"`
+	Name                   types.String  `tfsdk:"name"`
+	CreatedTime            types.String  `tfsdk:"created_time"`
+	DisplayName            types.String  `tfsdk:"display_name"`
+	WebsiteURL             types.String  `tfsdk:"website_url"`
+	Logo                   types.String  `tfsdk:"logo"`
+	LogoDark               types.String  `tfsdk:"logo_dark"`
+	Favicon                types.String  `tfsdk:"favicon"`
+	HasPrivilegeConsent    types.Bool    `tfsdk:"has_privilege_consent"`
+	PasswordType           types.String  `tfsdk:"password_type"`
+	PasswordSalt           types.String  `tfsdk:"password_salt"`
+	PasswordOptions        types.List    `tfsdk:"password_options"`
+	PasswordObfuscatorType types.String  `tfsdk:"password_obfuscator_type"`
+	PasswordObfuscatorKey  types.String  `tfsdk:"password_obfuscator_key"`
+	PasswordExpireDays     types.Int64   `tfsdk:"password_expire_days"`
+	CountryCodes           types.List    `tfsdk:"country_codes"`
+	DefaultAvatar          types.String  `tfsdk:"default_avatar"`
+	DefaultApplication     types.String  `tfsdk:"default_application"`
+	UserTypes              types.List    `tfsdk:"user_types"`
+	Tags                   types.List    `tfsdk:"tags"`
+	Languages              types.List    `tfsdk:"languages"`
+	ThemeData              types.Object  `tfsdk:"theme_data"`
+	MasterPassword         types.String  `tfsdk:"master_password"`
+	DefaultPassword        types.String  `tfsdk:"default_password"`
+	MasterVerificationCode types.String  `tfsdk:"master_verification_code"`
+	IPWhitelist            types.String  `tfsdk:"ip_whitelist"`
+	InitScore              types.Int64   `tfsdk:"init_score"`
+	EnableSoftDeletion     types.Bool    `tfsdk:"enable_soft_deletion"`
+	IsProfilePublic        types.Bool    `tfsdk:"is_profile_public"`
+	UseEmailAsUsername     types.Bool    `tfsdk:"use_email_as_username"`
+	EnableTour             types.Bool    `tfsdk:"enable_tour"`
+	DisableSignin          types.Bool    `tfsdk:"disable_signin"`
+	IPRestriction          types.String  `tfsdk:"ip_restriction"`
+	NavItems               types.List    `tfsdk:"nav_items"`
+	UserNavItems           types.List    `tfsdk:"user_nav_items"`
+	WidgetItems            types.List    `tfsdk:"widget_items"`
+	MfaItems               types.List    `tfsdk:"mfa_items"`
+	MfaRememberInHours     types.Int64   `tfsdk:"mfa_remember_in_hours"`
+	AccountItems           types.List    `tfsdk:"account_items"`
+	OrgBalance             types.Float64 `tfsdk:"org_balance"`
+	UserBalance            types.Float64 `tfsdk:"user_balance"`
+	BalanceCredit          types.Float64 `tfsdk:"balance_credit"`
+	BalanceCurrency        types.String  `tfsdk:"balance_currency"`
 }
 
 func NewOrganizationResource() resource.Resource {
@@ -362,6 +369,11 @@ func (r *OrganizationResource) Schema(_ context.Context, _ resource.SchemaReques
 				Optional:    true,
 				ElementType: types.StringType,
 			},
+			"user_nav_items": schema.ListAttribute{
+				Description: "List of user navigation items.",
+				Optional:    true,
+				ElementType: types.StringType,
+			},
 			"widget_items": schema.ListAttribute{
 				Description: "List of widget items.",
 				Optional:    true,
@@ -417,6 +429,30 @@ func (r *OrganizationResource) Schema(_ context.Context, _ resource.SchemaReques
 					},
 				},
 			},
+			"org_balance": schema.Float64Attribute{
+				Description: "The organization balance.",
+				Optional:    true,
+				Computed:    true,
+				Default:     float64default.StaticFloat64(0),
+			},
+			"user_balance": schema.Float64Attribute{
+				Description: "The user balance.",
+				Optional:    true,
+				Computed:    true,
+				Default:     float64default.StaticFloat64(0),
+			},
+			"balance_credit": schema.Float64Attribute{
+				Description: "The balance credit.",
+				Optional:    true,
+				Computed:    true,
+				Default:     float64default.StaticFloat64(0),
+			},
+			"balance_currency": schema.StringAttribute{
+				Description: "The balance currency.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString("USD"),
+			},
 		},
 	}
 }
@@ -447,7 +483,7 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	// Convert list types to Go slices.
-	var passwordOptions, countryCodes, userTypes, tags, languages, navItems, widgetItems []string
+	var passwordOptions, countryCodes, userTypes, tags, languages, navItems, userNavItems, widgetItems []string
 
 	if !plan.PasswordOptions.IsNull() {
 		resp.Diagnostics.Append(plan.PasswordOptions.ElementsAs(ctx, &passwordOptions, false)...)
@@ -466,6 +502,9 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	}
 	if !plan.NavItems.IsNull() {
 		resp.Diagnostics.Append(plan.NavItems.ElementsAs(ctx, &navItems, false)...)
+	}
+	if !plan.UserNavItems.IsNull() {
+		resp.Diagnostics.Append(plan.UserNavItems.ElementsAs(ctx, &userNavItems, false)...)
 	}
 	if !plan.WidgetItems.IsNull() {
 		resp.Diagnostics.Append(plan.WidgetItems.ElementsAs(ctx, &widgetItems, false)...)
@@ -524,9 +563,15 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 		}
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	org := &casdoorsdk.Organization{
 		Owner:                  plan.Owner.ValueString(),
 		Name:                   plan.Name.ValueString(),
+		CreatedTime:            createdTime,
 		DisplayName:            plan.DisplayName.ValueString(),
 		WebsiteUrl:             plan.WebsiteURL.ValueString(),
 		Logo:                   plan.Logo.ValueString(),
@@ -558,10 +603,15 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 		DisableSignin:          plan.DisableSignin.ValueBool(),
 		IpRestriction:          plan.IPRestriction.ValueString(),
 		NavItems:               navItems,
+		UserNavItems:           userNavItems,
 		WidgetItems:            widgetItems,
 		MfaItems:               mfaItems,
 		MfaRememberInHours:     int(plan.MfaRememberInHours.ValueInt64()),
 		AccountItems:           accountItems,
+		OrgBalance:             plan.OrgBalance.ValueFloat64(),
+		UserBalance:            plan.UserBalance.ValueFloat64(),
+		BalanceCredit:          plan.BalanceCredit.ValueFloat64(),
+		BalanceCurrency:        plan.BalanceCurrency.ValueString(),
 	}
 
 	success, err := r.client.AddOrganization(org)
@@ -613,6 +663,9 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	}
 	if len(navItems) == 0 {
 		plan.NavItems = types.ListNull(types.StringType)
+	}
+	if len(userNavItems) == 0 {
+		plan.UserNavItems = types.ListNull(types.StringType)
 	}
 	if len(widgetItems) == 0 {
 		plan.WidgetItems = types.ListNull(types.StringType)
@@ -700,6 +753,10 @@ func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadReques
 	state.DisableSignin = types.BoolValue(org.DisableSignin)
 	state.IPRestriction = types.StringValue(org.IpRestriction)
 	state.MfaRememberInHours = types.Int64Value(int64(org.MfaRememberInHours))
+	state.OrgBalance = types.Float64Value(org.OrgBalance)
+	state.UserBalance = types.Float64Value(org.UserBalance)
+	state.BalanceCredit = types.Float64Value(org.BalanceCredit)
+	state.BalanceCurrency = types.StringValue(org.BalanceCurrency)
 
 	// Convert string slices to list types.
 	if len(org.PasswordOptions) > 0 {
@@ -748,6 +805,14 @@ func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadReques
 		state.NavItems = navItems
 	} else {
 		state.NavItems = types.ListNull(types.StringType)
+	}
+
+	if len(org.UserNavItems) > 0 {
+		userNavItems, diags := types.ListValueFrom(ctx, types.StringType, org.UserNavItems)
+		resp.Diagnostics.Append(diags...)
+		state.UserNavItems = userNavItems
+	} else {
+		state.UserNavItems = types.ListNull(types.StringType)
 	}
 
 	if len(org.WidgetItems) > 0 {
@@ -828,7 +893,7 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 
 	// Convert list types to Go slices.
-	var passwordOptions, countryCodes, userTypes, tags, languages, navItems, widgetItems []string
+	var passwordOptions, countryCodes, userTypes, tags, languages, navItems, userNavItems, widgetItems []string
 
 	if !plan.PasswordOptions.IsNull() {
 		resp.Diagnostics.Append(plan.PasswordOptions.ElementsAs(ctx, &passwordOptions, false)...)
@@ -847,6 +912,9 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 	if !plan.NavItems.IsNull() {
 		resp.Diagnostics.Append(plan.NavItems.ElementsAs(ctx, &navItems, false)...)
+	}
+	if !plan.UserNavItems.IsNull() {
+		resp.Diagnostics.Append(plan.UserNavItems.ElementsAs(ctx, &userNavItems, false)...)
 	}
 	if !plan.WidgetItems.IsNull() {
 		resp.Diagnostics.Append(plan.WidgetItems.ElementsAs(ctx, &widgetItems, false)...)
@@ -940,10 +1008,15 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 		DisableSignin:          plan.DisableSignin.ValueBool(),
 		IpRestriction:          plan.IPRestriction.ValueString(),
 		NavItems:               navItems,
+		UserNavItems:           userNavItems,
 		WidgetItems:            widgetItems,
 		MfaItems:               mfaItems,
 		MfaRememberInHours:     int(plan.MfaRememberInHours.ValueInt64()),
 		AccountItems:           accountItems,
+		OrgBalance:             plan.OrgBalance.ValueFloat64(),
+		UserBalance:            plan.UserBalance.ValueFloat64(),
+		BalanceCredit:          plan.BalanceCredit.ValueFloat64(),
+		BalanceCurrency:        plan.BalanceCurrency.ValueString(),
 	}
 
 	success, err := r.client.UpdateOrganization(org)
@@ -981,6 +1054,9 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 	if len(navItems) == 0 {
 		plan.NavItems = types.ListNull(types.StringType)
+	}
+	if len(userNavItems) == 0 {
+		plan.UserNavItems = types.ListNull(types.StringType)
 	}
 	if len(widgetItems) == 0 {
 		plan.WidgetItems = types.ListNull(types.StringType)

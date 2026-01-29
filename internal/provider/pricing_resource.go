@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -94,6 +96,9 @@ func (r *PricingResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"is_enabled": schema.BoolAttribute{
 				Description: "Whether the pricing is enabled.",
@@ -150,9 +155,15 @@ func (r *PricingResource) Create(ctx context.Context, req resource.CreateRequest
 		}
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	pricing := &casdoorsdk.Pricing{
 		Owner:         plan.Owner.ValueString(),
 		Name:          plan.Name.ValueString(),
+		CreatedTime:   createdTime,
 		DisplayName:   plan.DisplayName.ValueString(),
 		Description:   plan.Description.ValueString(),
 		Plans:         plans,

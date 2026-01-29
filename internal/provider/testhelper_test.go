@@ -282,6 +282,7 @@ func getDemoConfig() CasdoorTestConfig {
 
 // setupTestConfig returns test configuration (for backwards compatibility).
 func setupTestConfig(t *testing.T) CasdoorTestConfig {
+	t.Parallel()
 	t.Helper()
 	ctx := context.Background()
 	env := setupTestEnv(ctx, t)

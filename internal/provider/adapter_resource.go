@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -160,9 +161,15 @@ func (r *AdapterResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	adapter := &casdoorsdk.Adapter{
 		Owner:        plan.Owner.ValueString(),
 		Name:         plan.Name.ValueString(),
+		CreatedTime:  createdTime,
 		UseSameDb:    plan.UseSameDb.ValueBool(),
 		Type:         plan.Type.ValueString(),
 		DatabaseType: plan.DatabaseType.ValueString(),

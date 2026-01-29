@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -29,6 +30,8 @@ type ModelResource struct {
 type ModelResourceModel struct {
 	Owner       types.String `tfsdk:"owner"`
 	Name        types.String `tfsdk:"name"`
+	CreatedTime types.String `tfsdk:"created_time"`
+	Description types.String `tfsdk:"description"`
 	DisplayName types.String `tfsdk:"display_name"`
 	ModelText   types.String `tfsdk:"model_text"`
 }
@@ -59,8 +62,21 @@ func (r *ModelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			"created_time": schema.StringAttribute{
+				Description: "The time when the model was created.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"display_name": schema.StringAttribute{
 				Description: "The display name of the model.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"description": schema.StringAttribute{
+				Description: "A description of the model.",
 				Optional:    true,
 				Computed:    true,
 				Default:     stringdefault.StaticString(""),
@@ -98,9 +114,16 @@ func (r *ModelResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	model := &casdoorsdk.Model{
 		Owner:       plan.Owner.ValueString(),
 		Name:        plan.Name.ValueString(),
+		CreatedTime: createdTime,
+		Description: plan.Description.ValueString(),
 		DisplayName: plan.DisplayName.ValueString(),
 		ModelText:   plan.ModelText.ValueString(),
 	}
@@ -120,6 +143,21 @@ func (r *ModelResource) Create(ctx context.Context, req resource.CreateRequest, 
 			fmt.Sprintf("Casdoor returned failure when creating model %q", plan.Name.ValueString()),
 		)
 		return
+	}
+
+	// Read back the model to get server-generated values like CreatedTime.
+	createdModel, err := r.client.GetModel(plan.Name.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Model",
+			fmt.Sprintf("Could not read model %q after creation: %s", plan.Name.ValueString(), err),
+		)
+		return
+	}
+
+	if createdModel != nil {
+		plan.CreatedTime = types.StringValue(createdModel.CreatedTime)
+		plan.ModelText = types.StringValue(createdModel.ModelText)
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -149,6 +187,8 @@ func (r *ModelResource) Read(ctx context.Context, req resource.ReadRequest, resp
 
 	state.Owner = types.StringValue(model.Owner)
 	state.Name = types.StringValue(model.Name)
+	state.CreatedTime = types.StringValue(model.CreatedTime)
+	state.Description = types.StringValue(model.Description)
 	state.DisplayName = types.StringValue(model.DisplayName)
 	state.ModelText = types.StringValue(model.ModelText)
 
@@ -166,11 +206,13 @@ func (r *ModelResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	model := &casdoorsdk.Model{
 		Owner:       plan.Owner.ValueString(),
 		Name:        plan.Name.ValueString(),
+		CreatedTime: plan.CreatedTime.ValueString(),
+		Description: plan.Description.ValueString(),
 		DisplayName: plan.DisplayName.ValueString(),
 		ModelText:   plan.ModelText.ValueString(),
 	}
 
-	success, err := r.client.UpdateModel(model)
+	_, err := r.client.UpdateModel(model)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Model",
@@ -179,12 +221,10 @@ func (r *ModelResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Model",
-			fmt.Sprintf("Casdoor returned failure when updating model %q", plan.Name.ValueString()),
-		)
-		return
+	// Read back to get server-normalized values.
+	updatedModel, err := r.client.GetModel(plan.Name.ValueString())
+	if err == nil && updatedModel != nil {
+		plan.ModelText = types.StringValue(updatedModel.ModelText)
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)

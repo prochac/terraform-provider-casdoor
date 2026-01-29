@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -37,6 +38,10 @@ type GroupResourceModel struct {
 	ContactEmail types.String `tfsdk:"contact_email"`
 	Type         types.String `tfsdk:"type"`
 	ParentId     types.String `tfsdk:"parent_id"`
+	ParentName   types.String `tfsdk:"parent_name"`
+	Title        types.String `tfsdk:"title"`
+	Key          types.String `tfsdk:"key"`
+	HaveChildren types.Bool   `tfsdk:"have_children"`
 	IsTopGroup   types.Bool   `tfsdk:"is_top_group"`
 	Users        types.List   `tfsdk:"users"`
 	IsEnabled    types.Bool   `tfsdk:"is_enabled"`
@@ -109,6 +114,28 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Computed:    true,
 				Default:     stringdefault.StaticString(""),
 			},
+			"parent_name": schema.StringAttribute{
+				Description: "The parent group name.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"title": schema.StringAttribute{
+				Description: "The title of the group.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"key": schema.StringAttribute{
+				Description: "The key identifier of the group.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"have_children": schema.BoolAttribute{
+				Description: "Whether this group has child groups.",
+				Computed:    true,
+			},
 			"is_top_group": schema.BoolAttribute{
 				Description: "Whether this is a top-level group.",
 				Optional:    true,
@@ -164,14 +191,24 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 		}
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	group := &casdoorsdk.Group{
 		Owner:        plan.Owner.ValueString(),
 		Name:         plan.Name.ValueString(),
+		CreatedTime:  createdTime,
+		UpdatedTime:  createdTime,
 		DisplayName:  plan.DisplayName.ValueString(),
 		Manager:      plan.Manager.ValueString(),
 		ContactEmail: plan.ContactEmail.ValueString(),
 		Type:         plan.Type.ValueString(),
 		ParentId:     plan.ParentId.ValueString(),
+		ParentName:   plan.ParentName.ValueString(),
+		Title:        plan.Title.ValueString(),
+		Key:          plan.Key.ValueString(),
 		IsTopGroup:   plan.IsTopGroup.ValueBool(),
 		Users:        users,
 		IsEnabled:    plan.IsEnabled.ValueBool(),
@@ -207,6 +244,10 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 	if createdGroup != nil {
 		plan.CreatedTime = types.StringValue(createdGroup.CreatedTime)
 		plan.UpdatedTime = types.StringValue(createdGroup.UpdatedTime)
+		plan.ParentName = types.StringValue(createdGroup.ParentName)
+		plan.Title = types.StringValue(createdGroup.Title)
+		plan.Key = types.StringValue(createdGroup.Key)
+		plan.HaveChildren = types.BoolValue(createdGroup.HaveChildren)
 		usersList, diags := types.ListValueFrom(ctx, types.StringType, createdGroup.Users)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
@@ -249,6 +290,10 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.ContactEmail = types.StringValue(group.ContactEmail)
 	state.Type = types.StringValue(group.Type)
 	state.ParentId = types.StringValue(group.ParentId)
+	state.ParentName = types.StringValue(group.ParentName)
+	state.Title = types.StringValue(group.Title)
+	state.Key = types.StringValue(group.Key)
+	state.HaveChildren = types.BoolValue(group.HaveChildren)
 	state.IsTopGroup = types.BoolValue(group.IsTopGroup)
 	state.IsEnabled = types.BoolValue(group.IsEnabled)
 
@@ -310,10 +355,20 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	// Read back to get updated timestamp.
+	// Read back to get updated fields.
 	updatedGroup, err := r.client.GetGroup(plan.Name.ValueString())
 	if err == nil && updatedGroup != nil {
 		plan.UpdatedTime = types.StringValue(updatedGroup.UpdatedTime)
+		plan.ParentName = types.StringValue(updatedGroup.ParentName)
+		plan.Title = types.StringValue(updatedGroup.Title)
+		plan.Key = types.StringValue(updatedGroup.Key)
+		plan.HaveChildren = types.BoolValue(updatedGroup.HaveChildren)
+		usersList, diags := types.ListValueFrom(ctx, types.StringType, updatedGroup.Users)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		plan.Users = usersList
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)

@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -30,6 +31,7 @@ type CertResource struct {
 type CertResourceModel struct {
 	Owner           types.String `tfsdk:"owner"`
 	Name            types.String `tfsdk:"name"`
+	CreatedTime     types.String `tfsdk:"created_time"`
 	DisplayName     types.String `tfsdk:"display_name"`
 	Scope           types.String `tfsdk:"scope"`
 	Type            types.String `tfsdk:"type"`
@@ -64,6 +66,13 @@ func (r *CertResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"created_time": schema.StringAttribute{
+				Description: "The time when the certificate was created.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"display_name": schema.StringAttribute{
@@ -142,9 +151,31 @@ func (r *CertResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
+	if plan.Certificate.ValueString() == "" {
+		resp.Diagnostics.AddError(
+			"Missing Certificate",
+			"The certificate attribute must be provided when creating a cert resource.",
+		)
+	}
+	if plan.PrivateKey.ValueString() == "" {
+		resp.Diagnostics.AddError(
+			"Missing Private Key",
+			"The private_key attribute must be provided when creating a cert resource.",
+		)
+	}
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	cert := &casdoorsdk.Cert{
 		Owner:           plan.Owner.ValueString(),
 		Name:            plan.Name.ValueString(),
+		CreatedTime:     createdTime,
 		DisplayName:     plan.DisplayName.ValueString(),
 		Scope:           plan.Scope.ValueString(),
 		Type:            plan.Type.ValueString(),
@@ -183,6 +214,11 @@ func (r *CertResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	if createdCert != nil {
+		createdTime := createdCert.CreatedTime
+		if createdTime == "" {
+			createdTime = time.Now().UTC().Format(time.RFC3339)
+		}
+		plan.CreatedTime = types.StringValue(createdTime)
 		plan.Certificate = types.StringValue(createdCert.Certificate)
 		plan.PrivateKey = types.StringValue(createdCert.PrivateKey)
 	}
@@ -214,6 +250,7 @@ func (r *CertResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	state.Owner = types.StringValue(cert.Owner)
 	state.Name = types.StringValue(cert.Name)
+	state.CreatedTime = types.StringValue(cert.CreatedTime)
 	state.DisplayName = types.StringValue(cert.DisplayName)
 	state.Scope = types.StringValue(cert.Scope)
 	state.Type = types.StringValue(cert.Type)
@@ -237,6 +274,7 @@ func (r *CertResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	cert := &casdoorsdk.Cert{
 		Owner:           plan.Owner.ValueString(),
 		Name:            plan.Name.ValueString(),
+		CreatedTime:     plan.CreatedTime.ValueString(),
 		DisplayName:     plan.DisplayName.ValueString(),
 		Scope:           plan.Scope.ValueString(),
 		Type:            plan.Type.ValueString(),

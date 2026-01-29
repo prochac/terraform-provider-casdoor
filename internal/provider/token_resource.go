@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -29,20 +30,23 @@ type TokenResource struct {
 }
 
 type TokenResourceModel struct {
-	Owner         types.String `tfsdk:"owner"`
-	Name          types.String `tfsdk:"name"`
-	Application   types.String `tfsdk:"application"`
-	Organization  types.String `tfsdk:"organization"`
-	User          types.String `tfsdk:"user"`
-	Code          types.String `tfsdk:"code"`
-	AccessToken   types.String `tfsdk:"access_token"`
-	RefreshToken  types.String `tfsdk:"refresh_token"`
-	ExpiresIn     types.Int64  `tfsdk:"expires_in"`
-	Scope         types.String `tfsdk:"scope"`
-	TokenType     types.String `tfsdk:"token_type"`
-	CodeChallenge types.String `tfsdk:"code_challenge"`
-	CodeIsUsed    types.Bool   `tfsdk:"code_is_used"`
-	CodeExpireIn  types.Int64  `tfsdk:"code_expire_in"`
+	Owner            types.String `tfsdk:"owner"`
+	Name             types.String `tfsdk:"name"`
+	CreatedTime      types.String `tfsdk:"created_time"`
+	Application      types.String `tfsdk:"application"`
+	Organization     types.String `tfsdk:"organization"`
+	User             types.String `tfsdk:"user"`
+	Code             types.String `tfsdk:"code"`
+	AccessToken      types.String `tfsdk:"access_token"`
+	RefreshToken     types.String `tfsdk:"refresh_token"`
+	AccessTokenHash  types.String `tfsdk:"access_token_hash"`
+	RefreshTokenHash types.String `tfsdk:"refresh_token_hash"`
+	ExpiresIn        types.Int64  `tfsdk:"expires_in"`
+	Scope            types.String `tfsdk:"scope"`
+	TokenType        types.String `tfsdk:"token_type"`
+	CodeChallenge    types.String `tfsdk:"code_challenge"`
+	CodeIsUsed       types.Bool   `tfsdk:"code_is_used"`
+	CodeExpireIn     types.Int64  `tfsdk:"code_expire_in"`
 }
 
 func NewTokenResource() resource.Resource {
@@ -71,6 +75,13 @@ func (r *TokenResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			"created_time": schema.StringAttribute{
+				Description: "The time when the token was created.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"application": schema.StringAttribute{
 				Description: "The application this token belongs to.",
 				Required:    true,
@@ -95,6 +106,9 @@ func (r *TokenResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Optional:    true,
 				Computed:    true,
 				Sensitive:   true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"refresh_token": schema.StringAttribute{
 				Description: "The refresh token.",
@@ -102,6 +116,20 @@ func (r *TokenResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Computed:    true,
 				Sensitive:   true,
 				Default:     stringdefault.StaticString(""),
+			},
+			"access_token_hash": schema.StringAttribute{
+				Description: "The hash of the access token.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"refresh_token_hash": schema.StringAttribute{
+				Description: "The hash of the refresh token.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"expires_in": schema.Int64Attribute{
 				Description: "Token expiration time in seconds.",
@@ -168,9 +196,15 @@ func (r *TokenResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	token := &casdoorsdk.Token{
 		Owner:         plan.Owner.ValueString(),
 		Name:          plan.Name.ValueString(),
+		CreatedTime:   createdTime,
 		Application:   plan.Application.ValueString(),
 		Organization:  plan.Organization.ValueString(),
 		User:          plan.User.ValueString(),
@@ -213,8 +247,11 @@ func (r *TokenResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	if createdToken != nil {
+		plan.CreatedTime = types.StringValue(createdToken.CreatedTime)
 		plan.AccessToken = types.StringValue(createdToken.AccessToken)
 		plan.RefreshToken = types.StringValue(createdToken.RefreshToken)
+		plan.AccessTokenHash = types.StringValue(createdToken.AccessTokenHash)
+		plan.RefreshTokenHash = types.StringValue(createdToken.RefreshTokenHash)
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -244,12 +281,15 @@ func (r *TokenResource) Read(ctx context.Context, req resource.ReadRequest, resp
 
 	state.Owner = types.StringValue(token.Owner)
 	state.Name = types.StringValue(token.Name)
+	state.CreatedTime = types.StringValue(token.CreatedTime)
 	state.Application = types.StringValue(token.Application)
 	state.Organization = types.StringValue(token.Organization)
 	state.User = types.StringValue(token.User)
 	state.Code = types.StringValue(token.Code)
 	state.AccessToken = types.StringValue(token.AccessToken)
 	state.RefreshToken = types.StringValue(token.RefreshToken)
+	state.AccessTokenHash = types.StringValue(token.AccessTokenHash)
+	state.RefreshTokenHash = types.StringValue(token.RefreshTokenHash)
 	state.ExpiresIn = types.Int64Value(int64(token.ExpiresIn))
 	state.Scope = types.StringValue(token.Scope)
 	state.TokenType = types.StringValue(token.TokenType)
@@ -271,6 +311,7 @@ func (r *TokenResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	token := &casdoorsdk.Token{
 		Owner:         plan.Owner.ValueString(),
 		Name:          plan.Name.ValueString(),
+		CreatedTime:   plan.CreatedTime.ValueString(),
 		Application:   plan.Application.ValueString(),
 		Organization:  plan.Organization.ValueString(),
 		User:          plan.User.ValueString(),
@@ -318,19 +359,11 @@ func (r *TokenResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteToken(token)
+	_, err := r.client.DeleteToken(token)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Token",
 			fmt.Sprintf("Could not delete token %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Token",
-			fmt.Sprintf("Casdoor returned failure when deleting token %q", state.Name.ValueString()),
 		)
 		return
 	}

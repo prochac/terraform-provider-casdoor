@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -114,6 +116,9 @@ func (r *WebhookResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Description: "Custom headers to include in webhook requests.",
 				Optional:    true,
 				Computed:    true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
@@ -132,18 +137,27 @@ func (r *WebhookResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"token_fields": schema.ListAttribute{
 				Description: "Token fields to include in the webhook payload.",
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"object_fields": schema.ListAttribute{
 				Description: "Object fields to include in the webhook payload.",
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"is_user_extended": schema.BoolAttribute{
 				Description: "Whether to include extended user information.",
@@ -257,9 +271,15 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	webhook := &casdoorsdk.Webhook{
 		Owner:          plan.Owner.ValueString(),
 		Name:           plan.Name.ValueString(),
+		CreatedTime:    createdTime,
 		Organization:   plan.Organization.ValueString(),
 		Url:            plan.Url.ValueString(),
 		Method:         plan.Method.ValueString(),

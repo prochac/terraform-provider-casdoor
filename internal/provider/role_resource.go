@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -30,6 +31,7 @@ type RoleResource struct {
 type RoleResourceModel struct {
 	Owner       types.String `tfsdk:"owner"`
 	Name        types.String `tfsdk:"name"`
+	CreatedTime types.String `tfsdk:"created_time"`
 	DisplayName types.String `tfsdk:"display_name"`
 	Description types.String `tfsdk:"description"`
 	Users       types.List   `tfsdk:"users"`
@@ -63,6 +65,13 @@ func (r *RoleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"created_time": schema.StringAttribute{
+				Description: "The time when the role was created.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"display_name": schema.StringAttribute{
@@ -150,9 +159,15 @@ func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	role := &casdoorsdk.Role{
 		Owner:       plan.Owner.ValueString(),
 		Name:        plan.Name.ValueString(),
+		CreatedTime: createdTime,
 		DisplayName: plan.DisplayName.ValueString(),
 		Description: plan.Description.ValueString(),
 		Users:       users,
@@ -177,6 +192,20 @@ func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, r
 			fmt.Sprintf("Casdoor returned failure when creating role %q", plan.Name.ValueString()),
 		)
 		return
+	}
+
+	// Read back the role to get server-generated values like CreatedTime.
+	createdRole, err := r.client.GetRole(plan.Name.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Role",
+			fmt.Sprintf("Could not read role %q after creation: %s", plan.Name.ValueString(), err),
+		)
+		return
+	}
+
+	if createdRole != nil {
+		plan.CreatedTime = types.StringValue(createdRole.CreatedTime)
 	}
 
 	// Set list values to null if empty.
@@ -222,6 +251,7 @@ func (r *RoleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.Name = types.StringValue(role.Name)
 	state.DisplayName = types.StringValue(role.DisplayName)
 	state.Description = types.StringValue(role.Description)
+	state.CreatedTime = types.StringValue(role.CreatedTime)
 	state.IsEnabled = types.BoolValue(role.IsEnabled)
 
 	if len(role.Users) > 0 {
@@ -292,6 +322,7 @@ func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	role := &casdoorsdk.Role{
 		Owner:       plan.Owner.ValueString(),
 		Name:        plan.Name.ValueString(),
+		CreatedTime: plan.CreatedTime.ValueString(),
 		DisplayName: plan.DisplayName.ValueString(),
 		Description: plan.Description.ValueString(),
 		Users:       users,

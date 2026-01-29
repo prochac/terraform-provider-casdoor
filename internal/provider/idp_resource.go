@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -69,6 +70,11 @@ type IdpResourceModel struct {
 	IssuerURL              types.String `tfsdk:"issuer_url"`
 	EnableSignAuthnRequest types.Bool   `tfsdk:"enable_sign_authn_request"`
 	ProviderURL            types.String `tfsdk:"provider_url"`
+	CreatedTime            types.String `tfsdk:"created_time"`
+	HttpHeaders            types.Map    `tfsdk:"http_headers"`
+	EmailRegex             types.String `tfsdk:"email_regex"`
+	EnableProxy            types.Bool   `tfsdk:"enable_proxy"`
+	EnablePkce             types.Bool   `tfsdk:"enable_pkce"`
 }
 
 func NewIdpResource() resource.Resource {
@@ -95,6 +101,13 @@ func (r *IdpResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"created_time": schema.StringAttribute{
+				Description: "The time when the provider was created.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"display_name": schema.StringAttribute{
@@ -312,6 +325,31 @@ func (r *IdpResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Computed:    true,
 				Default:     stringdefault.StaticString(""),
 			},
+			"http_headers": schema.MapAttribute{
+				Description: "HTTP headers to include in requests to the provider.",
+				Optional:    true,
+				Computed:    true,
+				ElementType: types.StringType,
+				Default:     mapdefault.StaticValue(types.MapValueMust(types.StringType, map[string]attr.Value{})),
+			},
+			"email_regex": schema.StringAttribute{
+				Description: "Regex pattern for validating email addresses from this provider.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"enable_proxy": schema.BoolAttribute{
+				Description: "Whether to enable proxy for this provider.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
+			"enable_pkce": schema.BoolAttribute{
+				Description: "Whether to enable PKCE for this provider.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
 		},
 	}
 }
@@ -350,9 +388,24 @@ func (r *IdpResource) Create(ctx context.Context, req resource.CreateRequest, re
 		}
 	}
 
+	var httpHeaders map[string]string
+	if !plan.HttpHeaders.IsNull() {
+		httpHeaders = make(map[string]string)
+		resp.Diagnostics.Append(plan.HttpHeaders.ElementsAs(ctx, &httpHeaders, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	provider := &casdoorsdk.Provider{
 		Owner:                  plan.Owner.ValueString(),
 		Name:                   plan.Name.ValueString(),
+		CreatedTime:            createdTime,
 		DisplayName:            plan.DisplayName.ValueString(),
 		Category:               plan.Category.ValueString(),
 		Type:                   plan.Type.ValueString(),
@@ -408,6 +461,20 @@ func (r *IdpResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
+	// Read back the provider to get server-generated values.
+	createdProvider, err := r.client.GetProvider(plan.Name.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Provider",
+			fmt.Sprintf("Could not read provider %q after creation: %s", plan.Name.ValueString(), err),
+		)
+		return
+	}
+
+	if createdProvider != nil {
+		plan.CreatedTime = types.StringValue(createdProvider.CreatedTime)
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -435,15 +502,22 @@ func (r *IdpResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 
 	state.Owner = types.StringValue(provider.Owner)
 	state.Name = types.StringValue(provider.Name)
+	state.CreatedTime = types.StringValue(provider.CreatedTime)
 	state.DisplayName = types.StringValue(provider.DisplayName)
 	state.Category = types.StringValue(provider.Category)
 	state.Type = types.StringValue(provider.Type)
 	state.SubType = types.StringValue(provider.SubType)
 	state.Method = types.StringValue(provider.Method)
 	state.ClientID = types.StringValue(provider.ClientId)
-	state.ClientSecret = types.StringValue(provider.ClientSecret)
+	// ClientSecret is masked by Casdoor API, preserve from state.
+	if provider.ClientSecret != "***" {
+		state.ClientSecret = types.StringValue(provider.ClientSecret)
+	}
 	state.ClientID2 = types.StringValue(provider.ClientId2)
-	state.ClientSecret2 = types.StringValue(provider.ClientSecret2)
+	// ClientSecret2 is masked by Casdoor API, preserve from state.
+	if provider.ClientSecret2 != "***" {
+		state.ClientSecret2 = types.StringValue(provider.ClientSecret2)
+	}
 	state.Cert = types.StringValue(provider.Cert)
 	state.CustomAuthURL = types.StringValue(provider.CustomAuthUrl)
 	state.CustomTokenURL = types.StringValue(provider.CustomTokenUrl)
@@ -470,6 +544,9 @@ func (r *IdpResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	state.IssuerURL = types.StringValue(provider.IssuerUrl)
 	state.EnableSignAuthnRequest = types.BoolValue(provider.EnableSignAuthnRequest)
 	state.ProviderURL = types.StringValue(provider.ProviderUrl)
+	state.EmailRegex = types.StringValue(provider.EmailRegex)
+	state.EnableProxy = types.BoolValue(provider.EnableProxy)
+	state.EnablePkce = types.BoolValue(provider.EnablePkce)
 
 	if len(provider.UserMapping) > 0 {
 		userMapping, diags := types.MapValueFrom(ctx, types.StringType, provider.UserMapping)

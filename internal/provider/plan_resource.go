@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -111,13 +113,18 @@ func (r *PlanResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "The product this plan belongs to.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"payment_providers": schema.ListAttribute{
 				Description: "List of payment providers for this plan.",
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"is_enabled": schema.BoolAttribute{
 				Description: "Whether the plan is enabled.",
@@ -136,6 +143,9 @@ func (r *PlanResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -177,9 +187,15 @@ func (r *PlanResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	planObj := &casdoorsdk.Plan{
 		Owner:            plan.Owner.ValueString(),
 		Name:             plan.Name.ValueString(),
+		CreatedTime:      createdTime,
 		DisplayName:      plan.DisplayName.ValueString(),
 		Description:      plan.Description.ValueString(),
 		Price:            plan.Price.ValueFloat64(),
@@ -221,6 +237,8 @@ func (r *PlanResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	if createdPlan != nil {
 		plan.CreatedTime = types.StringValue(createdPlan.CreatedTime)
+		plan.Product = types.StringValue(createdPlan.Product)
+		plan.Role = types.StringValue(createdPlan.Role)
 		providersList, _ := types.ListValueFrom(ctx, types.StringType, createdPlan.PaymentProviders)
 		plan.PaymentProviders = providersList
 		optionsList, _ := types.ListValueFrom(ctx, types.StringType, createdPlan.Options)

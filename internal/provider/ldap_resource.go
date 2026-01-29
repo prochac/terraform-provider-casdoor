@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -209,9 +210,15 @@ func (r *LdapResource) Create(ctx context.Context, req resource.CreateRequest, r
 		}
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	ldap := &casdoorsdk.Ldap{
 		Id:                  plan.Id.ValueString(),
 		Owner:               plan.Owner.ValueString(),
+		CreatedTime:         createdTime,
 		ServerName:          plan.ServerName.ValueString(),
 		Host:                plan.Host.ValueString(),
 		Port:                int(plan.Port.ValueInt64()),

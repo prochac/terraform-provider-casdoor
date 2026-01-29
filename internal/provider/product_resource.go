@@ -5,11 +5,13 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -29,20 +31,24 @@ type ProductResource struct {
 }
 
 type ProductResourceModel struct {
-	Owner       types.String  `tfsdk:"owner"`
-	Name        types.String  `tfsdk:"name"`
-	CreatedTime types.String  `tfsdk:"created_time"`
-	DisplayName types.String  `tfsdk:"display_name"`
-	Image       types.String  `tfsdk:"image"`
-	Detail      types.String  `tfsdk:"detail"`
-	Description types.String  `tfsdk:"description"`
-	Tag         types.String  `tfsdk:"tag"`
-	Currency    types.String  `tfsdk:"currency"`
-	Price       types.Float64 `tfsdk:"price"`
-	Quantity    types.Int64   `tfsdk:"quantity"`
-	Sold        types.Int64   `tfsdk:"sold"`
-	Providers   types.List    `tfsdk:"providers"`
-	State       types.String  `tfsdk:"state"`
+	Owner                 types.String  `tfsdk:"owner"`
+	Name                  types.String  `tfsdk:"name"`
+	CreatedTime           types.String  `tfsdk:"created_time"`
+	DisplayName           types.String  `tfsdk:"display_name"`
+	Image                 types.String  `tfsdk:"image"`
+	Detail                types.String  `tfsdk:"detail"`
+	Description           types.String  `tfsdk:"description"`
+	Tag                   types.String  `tfsdk:"tag"`
+	Currency              types.String  `tfsdk:"currency"`
+	Price                 types.Float64 `tfsdk:"price"`
+	Quantity              types.Int64   `tfsdk:"quantity"`
+	Sold                  types.Int64   `tfsdk:"sold"`
+	IsRecharge            types.Bool    `tfsdk:"is_recharge"`
+	RechargeOptions       types.List    `tfsdk:"recharge_options"`
+	DisableCustomRecharge types.Bool    `tfsdk:"disable_custom_recharge"`
+	SuccessUrl            types.String  `tfsdk:"success_url"`
+	Providers             types.List    `tfsdk:"providers"`
+	State                 types.String  `tfsdk:"state"`
 }
 
 func NewProductResource() resource.Resource {
@@ -130,6 +136,30 @@ func (r *ProductResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Description: "The number of products sold.",
 				Computed:    true,
 			},
+			"is_recharge": schema.BoolAttribute{
+				Description: "Whether this is a recharge product.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
+			"recharge_options": schema.ListAttribute{
+				Description: "List of recharge amount options.",
+				Optional:    true,
+				Computed:    true,
+				ElementType: types.Float64Type,
+			},
+			"disable_custom_recharge": schema.BoolAttribute{
+				Description: "Whether to disable custom recharge amounts.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
+			"success_url": schema.StringAttribute{
+				Description: "The URL to redirect to after successful payment.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
 			"providers": schema.ListAttribute{
 				Description: "List of payment provider names for this product.",
 				Optional:    true,
@@ -179,9 +209,15 @@ func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest
 		}
 	}
 
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	product := &casdoorsdk.Product{
 		Owner:       plan.Owner.ValueString(),
 		Name:        plan.Name.ValueString(),
+		CreatedTime: createdTime,
 		DisplayName: plan.DisplayName.ValueString(),
 		Image:       plan.Image.ValueString(),
 		Detail:      plan.Detail.ValueString(),
@@ -226,6 +262,8 @@ func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest
 		plan.Sold = types.Int64Value(int64(createdProduct.Sold))
 		providersList, _ := types.ListValueFrom(ctx, types.StringType, createdProduct.Providers)
 		plan.Providers = providersList
+		rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, createdProduct.RechargeOptions)
+		plan.RechargeOptions = rechargeOptionsList
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -265,10 +303,15 @@ func (r *ProductResource) Read(ctx context.Context, req resource.ReadRequest, re
 	state.Price = types.Float64Value(product.Price)
 	state.Quantity = types.Int64Value(int64(product.Quantity))
 	state.Sold = types.Int64Value(int64(product.Sold))
+	state.IsRecharge = types.BoolValue(product.IsRecharge)
+	state.DisableCustomRecharge = types.BoolValue(product.DisableCustomRecharge)
+	state.SuccessUrl = types.StringValue(product.SuccessUrl)
 	state.State = types.StringValue(product.State)
 
 	providersList, _ := types.ListValueFrom(ctx, types.StringType, product.Providers)
 	state.Providers = providersList
+	rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, product.RechargeOptions)
+	state.RechargeOptions = rechargeOptionsList
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -322,10 +365,18 @@ func (r *ProductResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	// Read back to get updated sold count.
+	// Read back to get server-updated fields.
 	updatedProduct, err := r.client.GetProduct(plan.Name.ValueString())
 	if err == nil && updatedProduct != nil {
 		plan.Sold = types.Int64Value(int64(updatedProduct.Sold))
+		plan.IsRecharge = types.BoolValue(updatedProduct.IsRecharge)
+		plan.DisableCustomRecharge = types.BoolValue(updatedProduct.DisableCustomRecharge)
+		plan.SuccessUrl = types.StringValue(updatedProduct.SuccessUrl)
+		plan.State = types.StringValue(updatedProduct.State)
+		providersList, _ := types.ListValueFrom(ctx, types.StringType, updatedProduct.Providers)
+		plan.Providers = providersList
+		rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, updatedProduct.RechargeOptions)
+		plan.RechargeOptions = rechargeOptionsList
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
