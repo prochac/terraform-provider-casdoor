@@ -290,13 +290,6 @@ func (r *PricingResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	// Read back to get updated computed fields.
-	updatedPricing, err := r.client.GetPricing(plan.Name.ValueString())
-	if err == nil && updatedPricing != nil {
-		// TODO update attributes
-		// plan.SomeAttr = types.StringValue(updatedPricing.SomeAttr)
-	}
-
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 

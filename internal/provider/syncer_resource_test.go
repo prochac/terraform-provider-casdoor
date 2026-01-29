@@ -72,7 +72,7 @@ func TestAccSyncerResource_import(t *testing.T) {
 	})
 }
 
-func testAccSyncerResourceConfig(name, syncerType, host string) string {
+func testAccSyncerResourceConfig(name, syncerType, host string) string { // nolint: unparam
 	return fmt.Sprintf(`
 resource "casdoor_syncer" "test" {
   owner         = "built-in"
