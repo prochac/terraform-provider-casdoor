@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -30,6 +29,7 @@ type TokenResource struct {
 }
 
 type TokenResourceModel struct {
+	ID               types.String `tfsdk:"id"`
 	Owner            types.String `tfsdk:"owner"`
 	Name             types.String `tfsdk:"name"`
 	CreatedTime      types.String `tfsdk:"created_time"`
@@ -61,6 +61,13 @@ func (r *TokenResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 	resp.Schema = schema.Schema{
 		Description: "Manages a Casdoor token.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "The ID of the token in the format 'owner/name'.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"owner": schema.StringAttribute{
 				Description: "The organization that owns this token.",
 				Required:    true,
@@ -254,6 +261,7 @@ func (r *TokenResource) Create(ctx context.Context, req resource.CreateRequest, 
 		plan.RefreshTokenHash = types.StringValue(createdToken.RefreshTokenHash)
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -279,6 +287,7 @@ func (r *TokenResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
+	state.ID = types.StringValue(token.Owner + "/" + token.Name)
 	state.Owner = types.StringValue(token.Owner)
 	state.Name = types.StringValue(token.Name)
 	state.CreatedTime = types.StringValue(token.CreatedTime)
@@ -343,6 +352,7 @@ func (r *TokenResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -370,5 +380,5 @@ func (r *TokenResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 }
 
 func (r *TokenResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }

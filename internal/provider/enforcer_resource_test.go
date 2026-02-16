@@ -54,12 +54,11 @@ func TestAccEnforcerResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccEnforcerResourceConfig(rName, "Test Enforcer"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName + "-enforcer",
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
+				Config:            testAccProviderConfig(config) + testAccEnforcerResourceConfig(rName, "Test Enforcer"),
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     "built-in/" + rName + "-enforcer",
+				ImportStateVerify: true,
 			},
 		},
 	})

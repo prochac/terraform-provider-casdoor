@@ -58,12 +58,11 @@ func TestAccWebhookResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccWebhookResourceConfig(rName, "https://example.com/hook"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
+				Config:            testAccProviderConfig(config) + testAccWebhookResourceConfig(rName, "https://example.com/hook"),
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     "built-in/" + rName,
+				ImportStateVerify: true,
 			},
 		},
 	})

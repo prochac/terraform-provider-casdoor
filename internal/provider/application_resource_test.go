@@ -162,12 +162,11 @@ func TestAccApplicationResource_import(t *testing.T) {
 			},
 			// ImportState testing.
 			{
-				Config:                               testAccProviderConfig(config) + testAccApplicationResourceConfig(rName, config.OrganizationName, "Test Application"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
+				Config:            testAccProviderConfig(config) + testAccApplicationResourceConfig(rName, config.OrganizationName, "Test Application"),
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     "admin/" + rName,
+				ImportStateVerify: true,
 			},
 		},
 	})

@@ -10,7 +10,6 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -129,7 +128,7 @@ func (r *UserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				},
 			},
 			"id": schema.StringAttribute{
-				Description: "The user ID (auto-generated).",
+				Description: "The ID of the user in the format 'owner/name'.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
@@ -578,7 +577,6 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		Name:               plan.Name.ValueString(),
 		CreatedTime:        createdTime,
 		UpdatedTime:        createdTime,
-		Id:                 plan.ID.ValueString(),
 		Type:               plan.Type.ValueString(),
 		Password:           plan.Password.ValueString(),
 		PasswordType:       plan.PasswordType.ValueString(),
@@ -658,7 +656,7 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	if createdUser != nil {
-		plan.ID = types.StringValue(createdUser.Id)
+		plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 		plan.CreatedTime = types.StringValue(createdUser.CreatedTime)
 		plan.UpdatedTime = types.StringValue(createdUser.UpdatedTime)
 		plan.IsDefaultAvatar = types.BoolValue(createdUser.IsDefaultAvatar)
@@ -687,7 +685,7 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 	} else {
 		// GetUser uses the provider's OrganizationName which may differ from the
 		// user's owner. Set computed fields to defaults to avoid unknown values.
-		plan.ID = types.StringValue("")
+		plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 		plan.CreatedTime = types.StringValue(createdTime)
 		plan.UpdatedTime = types.StringValue(createdTime)
 		plan.IsDefaultAvatar = types.BoolValue(false)
@@ -742,7 +740,7 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	state.Owner = types.StringValue(user.Owner)
 	state.Name = types.StringValue(user.Name)
-	state.ID = types.StringValue(user.Id)
+	state.ID = types.StringValue(user.Owner + "/" + user.Name)
 	state.Type = types.StringValue(user.Type)
 	// Password is write-only; never read it back from the server.
 	state.PasswordType = types.StringValue(user.PasswordType)
@@ -877,10 +875,26 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
+	// Read the existing user to preserve the Casdoor-internal Id field,
+	// which is immutable and must not change during updates.
+	existingUser, err := r.client.GetUser(plan.Name.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading User Before Update",
+			fmt.Sprintf("Could not read user %q before update: %s", plan.Name.ValueString(), err),
+		)
+		return
+	}
+
+	var internalID string
+	if existingUser != nil {
+		internalID = existingUser.Id
+	}
+
 	user := &casdoorsdk.User{
 		Owner:              plan.Owner.ValueString(),
 		Name:               plan.Name.ValueString(),
-		Id:                 plan.ID.ValueString(),
+		Id:                 internalID,
 		Type:               plan.Type.ValueString(),
 		Password:           plan.Password.ValueString(),
 		PasswordType:       plan.PasswordType.ValueString(),
@@ -1001,5 +1015,5 @@ func (r *UserResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 }
 
 func (r *UserResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }

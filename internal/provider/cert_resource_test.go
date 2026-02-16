@@ -60,13 +60,12 @@ func TestAccCertResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccCertResourceConfig(rName, "Test Cert"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
-				ImportStateVerifyIgnore:              []string{"private_key"},
+				Config:                  testAccProviderConfig(config) + testAccCertResourceConfig(rName, "Test Cert"),
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateId:           "admin/" + rName,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"private_key"},
 			},
 		},
 	})

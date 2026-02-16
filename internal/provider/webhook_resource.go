@@ -9,7 +9,6 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -36,6 +35,7 @@ type HeaderModel struct {
 }
 
 type WebhookResourceModel struct {
+	ID             types.String `tfsdk:"id"`
 	Owner          types.String `tfsdk:"owner"`
 	Name           types.String `tfsdk:"name"`
 	CreatedTime    types.String `tfsdk:"created_time"`
@@ -69,6 +69,13 @@ func (r *WebhookResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 	resp.Schema = schema.Schema{
 		Description: "Manages a Casdoor webhook for event notifications.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "The ID of the webhook in the format 'owner/name'.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"owner": schema.StringAttribute{
 				Description: "The organization that owns this webhook.",
 				Required:    true,
@@ -337,6 +344,7 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 		plan.ObjectFields = objectFieldsList
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -362,6 +370,7 @@ func (r *WebhookResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
+	state.ID = types.StringValue(webhook.Owner + "/" + webhook.Name)
 	state.Owner = types.StringValue(webhook.Owner)
 	state.Name = types.StringValue(webhook.Name)
 	state.CreatedTime = types.StringValue(webhook.CreatedTime)
@@ -452,6 +461,7 @@ func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -487,5 +497,5 @@ func (r *WebhookResource) Delete(ctx context.Context, req resource.DeleteRequest
 }
 
 func (r *WebhookResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }

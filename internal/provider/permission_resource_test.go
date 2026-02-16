@@ -55,12 +55,11 @@ func TestAccPermissionResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccPermissionResourceConfig(rName, "Test Permission"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
+				Config:            testAccProviderConfig(config) + testAccPermissionResourceConfig(rName, "Test Permission"),
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     "built-in/" + rName,
+				ImportStateVerify: true,
 			},
 		},
 	})

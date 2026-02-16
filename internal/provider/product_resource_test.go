@@ -57,12 +57,11 @@ func TestAccProductResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccProductResourceConfig(rName, "Test Product", "9.99"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
+				Config:            testAccProviderConfig(config) + testAccProductResourceConfig(rName, "Test Product", "9.99"),
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     "built-in/" + rName,
+				ImportStateVerify: true,
 			},
 		},
 	})

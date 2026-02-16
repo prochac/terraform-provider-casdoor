@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -29,6 +28,7 @@ type RoleResource struct {
 }
 
 type RoleResourceModel struct {
+	ID          types.String `tfsdk:"id"`
 	Owner       types.String `tfsdk:"owner"`
 	Name        types.String `tfsdk:"name"`
 	CreatedTime types.String `tfsdk:"created_time"`
@@ -53,6 +53,13 @@ func (r *RoleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 	resp.Schema = schema.Schema{
 		Description: "Manages a Casdoor role.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "The ID of the role in the format 'owner/name'.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"owner": schema.StringAttribute{
 				Description: "The organization that owns this role.",
 				Required:    true,
@@ -222,6 +229,7 @@ func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, r
 		plan.Domains = types.ListNull(types.StringType)
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -247,6 +255,7 @@ func (r *RoleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
+	state.ID = types.StringValue(role.Owner + "/" + role.Name)
 	state.Owner = types.StringValue(role.Owner)
 	state.Name = types.StringValue(role.Name)
 	state.DisplayName = types.StringValue(role.DisplayName)
@@ -363,6 +372,7 @@ func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		plan.Domains = types.ListNull(types.StringType)
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -398,5 +408,5 @@ func (r *RoleResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 }
 
 func (r *RoleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }

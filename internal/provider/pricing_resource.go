@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -31,6 +30,7 @@ type PricingResource struct {
 }
 
 type PricingResourceModel struct {
+	ID            types.String `tfsdk:"id"`
 	Owner         types.String `tfsdk:"owner"`
 	Name          types.String `tfsdk:"name"`
 	CreatedTime   types.String `tfsdk:"created_time"`
@@ -58,6 +58,13 @@ func (r *PricingResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 	resp.Schema = schema.Schema{
 		Description: "Manages a Casdoor pricing configuration for SaaS products.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "The ID of the pricing in the format 'owner/name'.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"owner": schema.StringAttribute{
 				Description: "The organization that owns this pricing.",
 				Required:    true,
@@ -205,6 +212,7 @@ func (r *PricingResource) Create(ctx context.Context, req resource.CreateRequest
 		plan.Plans = plansList
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -230,6 +238,7 @@ func (r *PricingResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
+	state.ID = types.StringValue(pricing.Owner + "/" + pricing.Name)
 	state.Owner = types.StringValue(pricing.Owner)
 	state.Name = types.StringValue(pricing.Name)
 	state.CreatedTime = types.StringValue(pricing.CreatedTime)
@@ -290,6 +299,7 @@ func (r *PricingResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -325,5 +335,5 @@ func (r *PricingResource) Delete(ctx context.Context, req resource.DeleteRequest
 }
 
 func (r *PricingResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }

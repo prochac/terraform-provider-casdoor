@@ -79,12 +79,11 @@ func TestAccAdapterResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccAdapterResourceConfig(config.OrganizationName, rName, true),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
+				Config:            testAccProviderConfig(config) + testAccAdapterResourceConfig(config.OrganizationName, rName, true),
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     config.OrganizationName + "/" + rName,
+				ImportStateVerify: true,
 			},
 		},
 	})

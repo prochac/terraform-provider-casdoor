@@ -59,13 +59,12 @@ func TestAccTokenResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccTokenResourceConfig(config, rName, "read", 7200),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
-				ImportStateVerifyIgnore:              []string{"code", "access_token", "refresh_token"},
+				Config:                  testAccProviderConfig(config) + testAccTokenResourceConfig(config, rName, "read", 7200),
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateId:           "admin/" + rName,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"code", "access_token", "refresh_token"},
 			},
 		},
 	})

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -29,6 +28,7 @@ type PermissionResource struct {
 }
 
 type PermissionResourceModel struct {
+	ID           types.String `tfsdk:"id"`
 	Owner        types.String `tfsdk:"owner"`
 	Name         types.String `tfsdk:"name"`
 	CreatedTime  types.String `tfsdk:"created_time"`
@@ -63,6 +63,13 @@ func (r *PermissionResource) Schema(_ context.Context, _ resource.SchemaRequest,
 	resp.Schema = schema.Schema{
 		Description: "Manages a Casdoor permission.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "The ID of the permission in the format 'owner/name'.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"owner": schema.StringAttribute{
 				Description: "The organization that owns this permission.",
 				Required:    true,
@@ -312,6 +319,7 @@ func (r *PermissionResource) Create(ctx context.Context, req resource.CreateRequ
 		plan.Actions = types.ListNull(types.StringType)
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -337,6 +345,7 @@ func (r *PermissionResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
+	state.ID = types.StringValue(permission.Owner + "/" + permission.Name)
 	state.Owner = types.StringValue(permission.Owner)
 	state.Name = types.StringValue(permission.Name)
 	state.CreatedTime = types.StringValue(permission.CreatedTime)
@@ -499,6 +508,7 @@ func (r *PermissionResource) Update(ctx context.Context, req resource.UpdateRequ
 		plan.Actions = types.ListNull(types.StringType)
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -534,5 +544,5 @@ func (r *PermissionResource) Delete(ctx context.Context, req resource.DeleteRequ
 }
 
 func (r *PermissionResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }

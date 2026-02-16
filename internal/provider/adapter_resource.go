@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -30,6 +29,7 @@ type AdapterResource struct {
 }
 
 type AdapterResourceModel struct {
+	ID           types.String `tfsdk:"id"`
 	Owner        types.String `tfsdk:"owner"`
 	Name         types.String `tfsdk:"name"`
 	CreatedTime  types.String `tfsdk:"created_time"`
@@ -56,6 +56,13 @@ func (r *AdapterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 	resp.Schema = schema.Schema{
 		Description: "Manages a Casdoor Casbin adapter for policy storage.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "The ID of the adapter in the format 'owner/name'.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"owner": schema.StringAttribute{
 				Description: "The organization that owns this adapter.",
 				Required:    true,
@@ -212,6 +219,7 @@ func (r *AdapterResource) Create(ctx context.Context, req resource.CreateRequest
 		plan.CreatedTime = types.StringValue(createdAdapter.CreatedTime)
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -237,6 +245,7 @@ func (r *AdapterResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
+	state.ID = types.StringValue(adapter.Owner + "/" + adapter.Name)
 	state.Owner = types.StringValue(adapter.Owner)
 	state.Name = types.StringValue(adapter.Name)
 	state.CreatedTime = types.StringValue(adapter.CreatedTime)
@@ -293,6 +302,7 @@ func (r *AdapterResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -328,5 +338,5 @@ func (r *AdapterResource) Delete(ctx context.Context, req resource.DeleteRequest
 }
 
 func (r *AdapterResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }

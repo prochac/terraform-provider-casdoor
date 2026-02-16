@@ -55,12 +55,11 @@ func TestAccRoleResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccRoleResourceConfig(config.OrganizationName, rName, "Test Role"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
+				Config:            testAccProviderConfig(config) + testAccRoleResourceConfig(config.OrganizationName, rName, "Test Role"),
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     config.OrganizationName + "/" + rName,
+				ImportStateVerify: true,
 			},
 		},
 	})

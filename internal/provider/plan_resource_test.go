@@ -27,7 +27,7 @@ func TestAccPlanResource_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "owner", "built-in"),
 					resource.TestCheckResourceAttr(resourceName, "description", ""),
 					resource.TestCheckResourceAttr(resourceName, "price", "0"),
-					resource.TestCheckResourceAttr(resourceName, "currency", ""),
+					resource.TestCheckResourceAttr(resourceName, "currency", "USD"),
 					resource.TestCheckResourceAttr(resourceName, "period", ""),
 					resource.TestCheckResourceAttr(resourceName, "is_enabled", "true"),
 				),
@@ -58,12 +58,11 @@ func TestAccPlanResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccPlanResourceConfig(rName, "Test Plan"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
+				Config:            testAccProviderConfig(config) + testAccPlanResourceConfig(rName, "Test Plan"),
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     "built-in/" + rName,
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -75,6 +74,7 @@ resource "casdoor_plan" "test" {
   owner        = "built-in"
   name         = %q
   display_name = %q
+  currency     = "USD"
 }
 `, name, displayName)
 }

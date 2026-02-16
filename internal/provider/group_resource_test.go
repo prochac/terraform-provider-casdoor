@@ -55,13 +55,12 @@ func TestAccGroupResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccGroupResourceConfig(rName, "Test Group"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
-				ImportStateVerifyIgnore:              []string{"updated_time", "parent_name", "title", "key", "have_children"},
+				Config:                  testAccProviderConfig(config) + testAccGroupResourceConfig(rName, "Test Group"),
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateId:           "built-in/" + rName,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_time", "parent_name", "title", "key", "have_children"},
 			},
 		},
 	})

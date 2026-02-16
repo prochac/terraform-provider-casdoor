@@ -9,7 +9,6 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -41,6 +40,7 @@ type TableColumnModel struct {
 }
 
 type SyncerResourceModel struct {
+	ID               types.String `tfsdk:"id"`
 	Owner            types.String `tfsdk:"owner"`
 	Name             types.String `tfsdk:"name"`
 	CreatedTime      types.String `tfsdk:"created_time"`
@@ -90,6 +90,13 @@ func (r *SyncerResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 	resp.Schema = schema.Schema{
 		Description: "Manages a Casdoor syncer for external system synchronization.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "The ID of the syncer in the format 'owner/name'.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"owner": schema.StringAttribute{
 				Description: "The organization that owns this syncer.",
 				Required:    true,
@@ -464,6 +471,7 @@ func (r *SyncerResource) Create(ctx context.Context, req resource.CreateRequest,
 		plan.TableColumns = tableColumnsList
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -489,6 +497,7 @@ func (r *SyncerResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
+	state.ID = types.StringValue(syncer.Owner + "/" + syncer.Name)
 	state.Owner = types.StringValue(syncer.Owner)
 	state.Name = types.StringValue(syncer.Name)
 	state.CreatedTime = types.StringValue(syncer.CreatedTime)
@@ -586,6 +595,7 @@ func (r *SyncerResource) Update(ctx context.Context, req resource.UpdateRequest,
 		plan.ErrorText = types.StringValue(updatedSyncer.ErrorText)
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -613,5 +623,5 @@ func (r *SyncerResource) Delete(ctx context.Context, req resource.DeleteRequest,
 }
 
 func (r *SyncerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }

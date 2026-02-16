@@ -9,7 +9,6 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -169,6 +168,7 @@ func SamlItemAttrTypes() map[string]attr.Type {
 
 // ApplicationResourceModel describes the resource data model.
 type ApplicationResourceModel struct {
+	ID types.String `tfsdk:"id"`
 	// Core fields
 	Owner        types.String `tfsdk:"owner"`
 	Name         types.String `tfsdk:"name"`
@@ -273,6 +273,13 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 	resp.Schema = schema.Schema{
 		Description: "Manages a Casdoor application.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "The ID of the application in the format 'owner/name'.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			// Core fields
 			"owner": schema.StringAttribute{
 				Description: "The owner of the application. Defaults to 'admin'.",
@@ -1482,6 +1489,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -1508,6 +1516,7 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	// Set scalar fields
+	state.ID = types.StringValue(app.Owner + "/" + app.Name)
 	state.Owner = types.StringValue(app.Owner)
 	state.Name = types.StringValue(app.Name)
 	state.CreatedTime = types.StringValue(app.CreatedTime)
@@ -2085,6 +2094,7 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 		plan.SigninItems = types.ListNull(types.ObjectType{AttrTypes: SigninItemAttrTypes()})
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -2122,5 +2132,5 @@ func (r *ApplicationResource) Delete(ctx context.Context, req resource.DeleteReq
 }
 
 func (r *ApplicationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }

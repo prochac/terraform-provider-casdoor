@@ -57,13 +57,12 @@ func TestAccIdpResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccIdpResourceConfig(rName, "Test Provider"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
-				ImportStateVerifyIgnore:              []string{"client_secret", "client_secret_2"},
+				Config:                  testAccProviderConfig(config) + testAccIdpResourceConfig(rName, "Test Provider"),
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateId:           "built-in/" + rName,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"client_secret", "client_secret_2"},
 			},
 		},
 	})

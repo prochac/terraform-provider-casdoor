@@ -149,13 +149,12 @@ func TestAccOrganizationResource_import(t *testing.T) {
 			},
 			// ImportState testing - use explicit ImportStateId
 			{
-				Config:                               testAccProviderConfig(config) + testAccOrganizationResourceConfig(rName, "Test Organization"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
-				ImportStateVerifyIgnore:              []string{"master_password", "default_password", "master_verification_code"},
+				Config:                  testAccProviderConfig(config) + testAccOrganizationResourceConfig(rName, "Test Organization"),
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateId:           "admin/" + rName,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"master_password", "default_password", "master_verification_code"},
 			},
 		},
 	})

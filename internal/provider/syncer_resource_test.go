@@ -60,13 +60,12 @@ func TestAccSyncerResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccSyncerResourceConfig(rName, "Database", "localhost"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
-				ImportStateVerifyIgnore:              []string{"password", "ssh_password", "ssl_mode", "ssh_type", "ssh_host", "ssh_port", "ssh_user", "cert"},
+				Config:                  testAccProviderConfig(config) + testAccSyncerResourceConfig(rName, "Database", "localhost"),
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateId:           "built-in/" + rName,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"password", "ssh_password", "ssl_mode", "ssh_type", "ssh_host", "ssh_port", "ssh_user", "cert"},
 			},
 		},
 	})

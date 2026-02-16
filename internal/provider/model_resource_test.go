@@ -56,12 +56,11 @@ func TestAccModelResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccModelResourceConfig(rName, "Test Model", "A test model"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
+				Config:            testAccProviderConfig(config) + testAccModelResourceConfig(rName, "Test Model", "A test model"),
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     "built-in/" + rName,
+				ImportStateVerify: true,
 			},
 		},
 	})

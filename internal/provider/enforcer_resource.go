@@ -9,7 +9,6 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapdefault"
@@ -30,6 +29,7 @@ type EnforcerResource struct {
 }
 
 type EnforcerResourceModel struct {
+	ID          types.String `tfsdk:"id"`
 	Owner       types.String `tfsdk:"owner"`
 	Name        types.String `tfsdk:"name"`
 	CreatedTime types.String `tfsdk:"created_time"`
@@ -53,6 +53,13 @@ func (r *EnforcerResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		Description: "Manages a Casdoor Casbin enforcer.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "The ID of the enforcer in the format 'owner/name'.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"owner": schema.StringAttribute{
 				Description: "The organization that owns this enforcer.",
 				Required:    true,
@@ -200,6 +207,7 @@ func (r *EnforcerResource) Create(ctx context.Context, req resource.CreateReques
 		}
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -225,6 +233,7 @@ func (r *EnforcerResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
+	state.ID = types.StringValue(enforcer.Owner + "/" + enforcer.Name)
 	state.Owner = types.StringValue(enforcer.Owner)
 	state.Name = types.StringValue(enforcer.Name)
 	state.DisplayName = types.StringValue(enforcer.DisplayName)
@@ -302,6 +311,7 @@ func (r *EnforcerResource) Update(ctx context.Context, req resource.UpdateReques
 		plan.UpdatedTime = types.StringValue(updatedEnforcer.UpdatedTime)
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -337,5 +347,5 @@ func (r *EnforcerResource) Delete(ctx context.Context, req resource.DeleteReques
 }
 
 func (r *EnforcerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }

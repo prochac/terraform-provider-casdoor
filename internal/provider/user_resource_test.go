@@ -87,13 +87,12 @@ func TestAccUserResource_import(t *testing.T) {
 			},
 			// ImportState testing
 			{
-				Config:                               testAccProviderConfig(config) + testAccUserResourceConfig(config.OrganizationName, rName, "Test User"),
-				ResourceName:                         resourceName,
-				ImportState:                          true,
-				ImportStateId:                        rName,
-				ImportStateVerify:                    true,
-				ImportStateVerifyIdentifierAttribute: "name",
-				ImportStateVerifyIgnore:              []string{"password", "password_salt", "access_key", "access_secret", "totp_secret", "recovery_codes", "id_card"},
+				Config:                  testAccProviderConfig(config) + testAccUserResourceConfig(config.OrganizationName, rName, "Test User"),
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateId:           config.OrganizationName + "/" + rName,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"password", "password_salt", "access_key", "access_secret", "totp_secret", "recovery_codes", "id_card"},
 			},
 		},
 	})

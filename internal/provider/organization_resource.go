@@ -9,7 +9,6 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -87,6 +86,7 @@ func ThemeDataAttrTypes() map[string]attr.Type {
 }
 
 type OrganizationResourceModel struct {
+	ID                     types.String  `tfsdk:"id"`
 	Owner                  types.String  `tfsdk:"owner"`
 	Name                   types.String  `tfsdk:"name"`
 	CreatedTime            types.String  `tfsdk:"created_time"`
@@ -144,6 +144,13 @@ func (r *OrganizationResource) Schema(_ context.Context, _ resource.SchemaReques
 	resp.Schema = schema.Schema{
 		Description: "Manages a Casdoor organization.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "The ID of the organization in the format 'owner/name'.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"owner": schema.StringAttribute{
 				Description: "The owner of the organization. Defaults to 'admin'.",
 				Optional:    true,
@@ -677,6 +684,8 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 		plan.AccountItems = types.ListNull(types.ObjectType{AttrTypes: AccountItemAttrTypes()})
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -703,6 +712,7 @@ func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadReques
 	}
 
 	// Set scalar fields.
+	state.ID = types.StringValue(org.Owner + "/" + org.Name)
 	state.Owner = types.StringValue(org.Owner)
 	state.Name = types.StringValue(org.Name)
 	state.CreatedTime = types.StringValue(org.CreatedTime)
@@ -1068,6 +1078,8 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 		plan.AccountItems = types.ListNull(types.ObjectType{AttrTypes: AccountItemAttrTypes()})
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -1103,5 +1115,5 @@ func (r *OrganizationResource) Delete(ctx context.Context, req resource.DeleteRe
 }
 
 func (r *OrganizationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }

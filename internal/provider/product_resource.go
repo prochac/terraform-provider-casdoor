@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -31,6 +30,7 @@ type ProductResource struct {
 }
 
 type ProductResourceModel struct {
+	ID                    types.String  `tfsdk:"id"`
 	Owner                 types.String  `tfsdk:"owner"`
 	Name                  types.String  `tfsdk:"name"`
 	CreatedTime           types.String  `tfsdk:"created_time"`
@@ -63,6 +63,13 @@ func (r *ProductResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 	resp.Schema = schema.Schema{
 		Description: "Manages a Casdoor product for the SaaS product catalog.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "The ID of the product in the format 'owner/name'.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 			"owner": schema.StringAttribute{
 				Description: "The organization that owns this product.",
 				Required:    true,
@@ -266,6 +273,7 @@ func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest
 		plan.RechargeOptions = rechargeOptionsList
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -291,6 +299,7 @@ func (r *ProductResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
+	state.ID = types.StringValue(product.Owner + "/" + product.Name)
 	state.Owner = types.StringValue(product.Owner)
 	state.Name = types.StringValue(product.Name)
 	state.CreatedTime = types.StringValue(product.CreatedTime)
@@ -379,6 +388,7 @@ func (r *ProductResource) Update(ctx context.Context, req resource.UpdateRequest
 		plan.RechargeOptions = rechargeOptionsList
 	}
 
+	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -414,5 +424,5 @@ func (r *ProductResource) Delete(ctx context.Context, req resource.DeleteRequest
 }
 
 func (r *ProductResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+	importStateOwnerName(ctx, req, resp)
 }
