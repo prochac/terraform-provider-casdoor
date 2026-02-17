@@ -483,7 +483,7 @@ func (r *SyncerResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	syncer, err := r.client.GetSyncer(state.Name.ValueString())
+	syncer, err := getByOwnerName[casdoorsdk.Syncer](r.client, "get-syncer", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Syncer",

@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -142,6 +144,9 @@ func (r *ProductResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"sold": schema.Int64Attribute{
 				Description: "The number of products sold.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"is_recharge": schema.BoolAttribute{
 				Description: "Whether this is a recharge product.",
@@ -154,6 +159,9 @@ func (r *ProductResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.Float64Type,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"disable_custom_recharge": schema.BoolAttribute{
 				Description: "Whether to disable custom recharge amounts.",
@@ -172,6 +180,9 @@ func (r *ProductResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Description: "The current state of the product.",
@@ -277,14 +288,20 @@ func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	if createdProduct != nil {
-		plan.CreatedTime = types.StringValue(createdProduct.CreatedTime)
-		plan.Sold = types.Int64Value(int64(createdProduct.Sold))
-		providersList, _ := types.ListValueFrom(ctx, types.StringType, createdProduct.Providers)
-		plan.Providers = providersList
-		rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, createdProduct.RechargeOptions)
-		plan.RechargeOptions = rechargeOptionsList
+	if createdProduct == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Product",
+			fmt.Sprintf("Product %q not found after creation", plan.Name.ValueString()),
+		)
+		return
 	}
+
+	plan.CreatedTime = types.StringValue(createdProduct.CreatedTime)
+	plan.Sold = types.Int64Value(int64(createdProduct.Sold))
+	providersList, _ := types.ListValueFrom(ctx, types.StringType, createdProduct.Providers)
+	plan.Providers = providersList
+	rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, createdProduct.RechargeOptions)
+	plan.RechargeOptions = rechargeOptionsList
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -298,7 +315,7 @@ func (r *ProductResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	product, err := r.client.GetProduct(state.Name.ValueString())
+	product, err := getByOwnerName[casdoorsdk.Product](r.client, "get-product", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Product",
@@ -402,17 +419,30 @@ func (r *ProductResource) Update(ctx context.Context, req resource.UpdateRequest
 
 	// Read back to get server-updated fields.
 	updatedProduct, err := r.client.GetProduct(plan.Name.ValueString())
-	if err == nil && updatedProduct != nil {
-		plan.Sold = types.Int64Value(int64(updatedProduct.Sold))
-		plan.IsRecharge = types.BoolValue(updatedProduct.IsRecharge)
-		plan.DisableCustomRecharge = types.BoolValue(updatedProduct.DisableCustomRecharge)
-		plan.SuccessUrl = types.StringValue(updatedProduct.SuccessUrl)
-		plan.State = types.StringValue(updatedProduct.State)
-		providersList, _ := types.ListValueFrom(ctx, types.StringType, updatedProduct.Providers)
-		plan.Providers = providersList
-		rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, updatedProduct.RechargeOptions)
-		plan.RechargeOptions = rechargeOptionsList
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Product",
+			fmt.Sprintf("Could not read product %q after update: %s", plan.Name.ValueString(), err),
+		)
+		return
 	}
+	if updatedProduct == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Product",
+			fmt.Sprintf("Product %q not found after update", plan.Name.ValueString()),
+		)
+		return
+	}
+
+	plan.Sold = types.Int64Value(int64(updatedProduct.Sold))
+	plan.IsRecharge = types.BoolValue(updatedProduct.IsRecharge)
+	plan.DisableCustomRecharge = types.BoolValue(updatedProduct.DisableCustomRecharge)
+	plan.SuccessUrl = types.StringValue(updatedProduct.SuccessUrl)
+	plan.State = types.StringValue(updatedProduct.State)
+	providersList, _ := types.ListValueFrom(ctx, types.StringType, updatedProduct.Providers)
+	plan.Providers = providersList
+	rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, updatedProduct.RechargeOptions)
+	plan.RechargeOptions = rechargeOptionsList
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)

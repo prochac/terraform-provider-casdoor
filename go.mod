@@ -2,7 +2,7 @@ module github.com/prochac/terraform-provider-casdoor
 
 go 1.25
 
-replace github.com/casdoor/casdoor-go-sdk v1.44.0 => github.com/prochac/casdoor-go-sdk v0.0.0-20260217104345-64663c13e5be
+replace github.com/casdoor/casdoor-go-sdk v1.44.0 => github.com/prochac/casdoor-go-sdk v0.0.0-20260217161045-02df06e23911
 
 require (
 	github.com/casdoor/casdoor-go-sdk v1.44.0

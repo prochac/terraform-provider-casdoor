@@ -11,6 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -90,6 +92,9 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"updated_time": schema.StringAttribute{
 				Description: "The time when the group was last updated.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"display_name": schema.StringAttribute{
 				Description: "The display name of the group.",
@@ -142,6 +147,9 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"have_children": schema.BoolAttribute{
 				Description: "Whether this group has child groups.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"is_top_group": schema.BoolAttribute{
 				Description: "Whether this is a top-level group.",
@@ -154,6 +162,9 @@ func (r *GroupResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"is_enabled": schema.BoolAttribute{
 				Description: "Whether the group is enabled.",
@@ -248,20 +259,26 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	if createdGroup != nil {
-		plan.CreatedTime = types.StringValue(createdGroup.CreatedTime)
-		plan.UpdatedTime = types.StringValue(createdGroup.UpdatedTime)
-		plan.ParentName = types.StringValue(createdGroup.ParentName)
-		plan.Title = types.StringValue(createdGroup.Title)
-		plan.Key = types.StringValue(createdGroup.Key)
-		plan.HaveChildren = types.BoolValue(createdGroup.HaveChildren)
-		usersList, diags := types.ListValueFrom(ctx, types.StringType, createdGroup.Users)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		plan.Users = usersList
+	if createdGroup == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Group",
+			fmt.Sprintf("Group %q not found after creation", plan.Name.ValueString()),
+		)
+		return
 	}
+
+	plan.CreatedTime = types.StringValue(createdGroup.CreatedTime)
+	plan.UpdatedTime = types.StringValue(createdGroup.UpdatedTime)
+	plan.ParentName = types.StringValue(createdGroup.ParentName)
+	plan.Title = types.StringValue(createdGroup.Title)
+	plan.Key = types.StringValue(createdGroup.Key)
+	plan.HaveChildren = types.BoolValue(createdGroup.HaveChildren)
+	usersList, diags := types.ListValueFrom(ctx, types.StringType, createdGroup.Users)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	plan.Users = usersList
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -275,7 +292,7 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	group, err := r.client.GetGroup(state.Name.ValueString())
+	group, err := getByOwnerName[casdoorsdk.Group](r.client, "get-group", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Group",
@@ -366,19 +383,32 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 
 	// Read back to get updated fields.
 	updatedGroup, err := r.client.GetGroup(plan.Name.ValueString())
-	if err == nil && updatedGroup != nil {
-		plan.UpdatedTime = types.StringValue(updatedGroup.UpdatedTime)
-		plan.ParentName = types.StringValue(updatedGroup.ParentName)
-		plan.Title = types.StringValue(updatedGroup.Title)
-		plan.Key = types.StringValue(updatedGroup.Key)
-		plan.HaveChildren = types.BoolValue(updatedGroup.HaveChildren)
-		usersList, diags := types.ListValueFrom(ctx, types.StringType, updatedGroup.Users)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		plan.Users = usersList
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Group",
+			fmt.Sprintf("Could not read group %q after update: %s", plan.Name.ValueString(), err),
+		)
+		return
 	}
+	if updatedGroup == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Group",
+			fmt.Sprintf("Group %q not found after update", plan.Name.ValueString()),
+		)
+		return
+	}
+
+	plan.UpdatedTime = types.StringValue(updatedGroup.UpdatedTime)
+	plan.ParentName = types.StringValue(updatedGroup.ParentName)
+	plan.Title = types.StringValue(updatedGroup.Title)
+	plan.Key = types.StringValue(updatedGroup.Key)
+	plan.HaveChildren = types.BoolValue(updatedGroup.HaveChildren)
+	usersList, diags := types.ListValueFrom(ctx, types.StringType, updatedGroup.Users)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	plan.Users = usersList
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)

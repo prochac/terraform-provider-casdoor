@@ -103,6 +103,9 @@ func (r *ModelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"updated_time": schema.StringAttribute{
 				Description: "The time when the model was last updated.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"manager": schema.StringAttribute{
 				Description: "The manager of this model.",
@@ -216,11 +219,17 @@ func (r *ModelResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	if createdModel != nil {
-		plan.CreatedTime = types.StringValue(createdModel.CreatedTime)
-		plan.UpdatedTime = types.StringValue(createdModel.UpdatedTime)
-		plan.ModelText = types.StringValue(createdModel.ModelText)
+	if createdModel == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Model",
+			fmt.Sprintf("Model %q not found after creation", plan.Name.ValueString()),
+		)
+		return
 	}
+
+	plan.CreatedTime = types.StringValue(createdModel.CreatedTime)
+	plan.UpdatedTime = types.StringValue(createdModel.UpdatedTime)
+	plan.ModelText = types.StringValue(createdModel.ModelText)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -234,7 +243,7 @@ func (r *ModelResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	model, err := r.client.GetModel(state.Name.ValueString())
+	model, err := getByOwnerName[casdoorsdk.Model](r.client, "get-model", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Model",
@@ -300,10 +309,23 @@ func (r *ModelResource) Update(ctx context.Context, req resource.UpdateRequest, 
 
 	// Read back to get server-normalized values.
 	updatedModel, err := r.client.GetModel(plan.Name.ValueString())
-	if err == nil && updatedModel != nil {
-		plan.UpdatedTime = types.StringValue(updatedModel.UpdatedTime)
-		plan.ModelText = types.StringValue(updatedModel.ModelText)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Model",
+			fmt.Sprintf("Could not read model %q after update: %s", plan.Name.ValueString(), err),
+		)
+		return
 	}
+	if updatedModel == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Model",
+			fmt.Sprintf("Model %q not found after update", plan.Name.ValueString()),
+		)
+		return
+	}
+
+	plan.UpdatedTime = types.StringValue(updatedModel.UpdatedTime)
+	plan.ModelText = types.StringValue(updatedModel.ModelText)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)

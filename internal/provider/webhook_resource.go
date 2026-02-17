@@ -356,7 +356,7 @@ func (r *WebhookResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	webhook, err := r.client.GetWebhook(state.Name.ValueString())
+	webhook, err := getByOwnerName[casdoorsdk.Webhook](r.client, "get-webhook", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Webhook",

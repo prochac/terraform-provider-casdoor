@@ -281,7 +281,7 @@ func (r *TokenResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	token, err := r.client.GetToken(state.Name.ValueString())
+	token, err := getByOwnerName[casdoorsdk.Token](r.client, "get-token", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Token",

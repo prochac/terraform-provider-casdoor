@@ -236,15 +236,21 @@ func (r *CertResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	if createdCert != nil {
-		createdTime := createdCert.CreatedTime
-		if createdTime == "" {
-			createdTime = time.Now().UTC().Format(time.RFC3339)
-		}
-		plan.CreatedTime = types.StringValue(createdTime)
-		plan.Certificate = types.StringValue(createdCert.Certificate)
-		plan.PrivateKey = types.StringValue(createdCert.PrivateKey)
+	if createdCert == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Certificate",
+			fmt.Sprintf("Certificate %q not found after creation", plan.Name.ValueString()),
+		)
+		return
 	}
+
+	createdTime = createdCert.CreatedTime
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+	plan.CreatedTime = types.StringValue(createdTime)
+	plan.Certificate = types.StringValue(createdCert.Certificate)
+	plan.PrivateKey = types.StringValue(createdCert.PrivateKey)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 
@@ -259,7 +265,7 @@ func (r *CertResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	cert, err := r.client.GetCert(state.Name.ValueString())
+	cert, err := getByOwnerName[casdoorsdk.Cert](r.client, "get-cert", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Certificate",

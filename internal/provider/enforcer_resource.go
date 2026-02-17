@@ -86,6 +86,9 @@ func (r *EnforcerResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"updated_time": schema.StringAttribute{
 				Description: "The time when the enforcer was last updated.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"display_name": schema.StringAttribute{
 				Description: "The display name of the enforcer.",
@@ -204,16 +207,22 @@ func (r *EnforcerResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	if createdEnforcer != nil {
-		plan.CreatedTime = types.StringValue(createdEnforcer.CreatedTime)
-		plan.UpdatedTime = types.StringValue(createdEnforcer.UpdatedTime)
-		if len(createdEnforcer.ModelCfg) > 0 {
-			modelCfgMap, diags := types.MapValueFrom(ctx, types.StringType, createdEnforcer.ModelCfg)
-			resp.Diagnostics.Append(diags...)
-			plan.ModelCfg = modelCfgMap
-		} else {
-			plan.ModelCfg = types.MapValueMust(types.StringType, map[string]attr.Value{})
-		}
+	if createdEnforcer == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Enforcer",
+			fmt.Sprintf("Enforcer %q not found after creation", plan.Name.ValueString()),
+		)
+		return
+	}
+
+	plan.CreatedTime = types.StringValue(createdEnforcer.CreatedTime)
+	plan.UpdatedTime = types.StringValue(createdEnforcer.UpdatedTime)
+	if len(createdEnforcer.ModelCfg) > 0 {
+		modelCfgMap, diags := types.MapValueFrom(ctx, types.StringType, createdEnforcer.ModelCfg)
+		resp.Diagnostics.Append(diags...)
+		plan.ModelCfg = modelCfgMap
+	} else {
+		plan.ModelCfg = types.MapValueMust(types.StringType, map[string]attr.Value{})
 	}
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
@@ -228,7 +237,7 @@ func (r *EnforcerResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	enforcer, err := r.client.GetEnforcer(state.Name.ValueString())
+	enforcer, err := getByOwnerName[casdoorsdk.Enforcer](r.client, "get-enforcer", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Enforcer",
@@ -318,9 +327,22 @@ func (r *EnforcerResource) Update(ctx context.Context, req resource.UpdateReques
 
 	// Read back to get server-updated fields.
 	updatedEnforcer, err := r.client.GetEnforcer(plan.Name.ValueString())
-	if err == nil && updatedEnforcer != nil {
-		plan.UpdatedTime = types.StringValue(updatedEnforcer.UpdatedTime)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Enforcer",
+			fmt.Sprintf("Could not read enforcer %q after update: %s", plan.Name.ValueString(), err),
+		)
+		return
 	}
+	if updatedEnforcer == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Enforcer",
+			fmt.Sprintf("Enforcer %q not found after update", plan.Name.ValueString()),
+		)
+		return
+	}
+
+	plan.UpdatedTime = types.StringValue(updatedEnforcer.UpdatedTime)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)

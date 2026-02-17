@@ -331,7 +331,7 @@ func (r *PermissionResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	permission, err := r.client.GetPermission(state.Name.ValueString())
+	permission, err := getByOwnerName[casdoorsdk.Permission](r.client, "get-permission", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Permission",

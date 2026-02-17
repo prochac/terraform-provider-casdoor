@@ -1521,7 +1521,7 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	user, err := r.client.GetUser(state.Name.ValueString())
+	user, err := getByOwnerName[casdoorsdk.User](r.client, "get-user", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading User",

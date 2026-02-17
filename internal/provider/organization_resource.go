@@ -724,7 +724,7 @@ func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 
-	org, err := r.client.GetOrganization(state.Name.ValueString())
+	org, err := getByOwnerName[casdoorsdk.Organization](r.client, "get-organization", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Organization",

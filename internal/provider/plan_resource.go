@@ -242,15 +242,21 @@ func (r *PlanResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	if createdPlan != nil {
-		plan.CreatedTime = types.StringValue(createdPlan.CreatedTime)
-		plan.Product = types.StringValue(createdPlan.Product)
-		plan.Role = types.StringValue(createdPlan.Role)
-		providersList, _ := types.ListValueFrom(ctx, types.StringType, createdPlan.PaymentProviders)
-		plan.PaymentProviders = providersList
-		optionsList, _ := types.ListValueFrom(ctx, types.StringType, createdPlan.Options)
-		plan.Options = optionsList
+	if createdPlan == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Plan",
+			fmt.Sprintf("Plan %q not found after creation", plan.Name.ValueString()),
+		)
+		return
 	}
+
+	plan.CreatedTime = types.StringValue(createdPlan.CreatedTime)
+	plan.Product = types.StringValue(createdPlan.Product)
+	plan.Role = types.StringValue(createdPlan.Role)
+	providersList, _ := types.ListValueFrom(ctx, types.StringType, createdPlan.PaymentProviders)
+	plan.PaymentProviders = providersList
+	optionsList, _ := types.ListValueFrom(ctx, types.StringType, createdPlan.Options)
+	plan.Options = optionsList
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -264,7 +270,7 @@ func (r *PlanResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	planObj, err := r.client.GetPlan(state.Name.ValueString())
+	planObj, err := getByOwnerName[casdoorsdk.Plan](r.client, "get-plan", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Plan",

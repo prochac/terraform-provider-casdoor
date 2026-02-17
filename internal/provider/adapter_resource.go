@@ -247,7 +247,7 @@ func (r *AdapterResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	adapter, err := r.client.GetAdapter(state.Name.ValueString())
+	adapter, err := getByOwnerName[casdoorsdk.Adapter](r.client, "get-adapter", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Adapter",

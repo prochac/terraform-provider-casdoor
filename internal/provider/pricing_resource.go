@@ -234,11 +234,17 @@ func (r *PricingResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	if createdPricing != nil {
-		plan.CreatedTime = types.StringValue(createdPricing.CreatedTime)
-		plansList, _ := types.ListValueFrom(ctx, types.StringType, createdPricing.Plans)
-		plan.Plans = plansList
+	if createdPricing == nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Pricing",
+			fmt.Sprintf("Pricing %q not found after creation", plan.Name.ValueString()),
+		)
+		return
 	}
+
+	plan.CreatedTime = types.StringValue(createdPricing.CreatedTime)
+	plansList, _ := types.ListValueFrom(ctx, types.StringType, createdPricing.Plans)
+	plan.Plans = plansList
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -252,7 +258,7 @@ func (r *PricingResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	pricing, err := r.client.GetPricing(state.Name.ValueString())
+	pricing, err := getByOwnerName[casdoorsdk.Pricing](r.client, "get-pricing", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Pricing",

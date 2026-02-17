@@ -288,7 +288,7 @@ func (r *LdapResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	ldap, err := r.client.GetLdap(state.Id.ValueString())
+	ldap, err := getByOwnerName[casdoorsdk.Ldap](r.client, "get-ldap", state.Owner.ValueString(), state.Id.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading LDAP",

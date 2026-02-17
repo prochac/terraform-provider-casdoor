@@ -506,7 +506,7 @@ func (r *IdpResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	}
 
-	provider, err := r.client.GetProvider(state.Name.ValueString())
+	provider, err := getByOwnerName[casdoorsdk.Provider](r.client, "get-provider", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Provider",

@@ -1686,7 +1686,7 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	app, err := r.client.GetApplication(state.Name.ValueString())
+	app, err := getByOwnerName[casdoorsdk.Application](r.client, "get-application", state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Application",
