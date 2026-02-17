@@ -252,7 +252,7 @@ func (r *LdapResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Read back the LDAP to get server-generated values.
-	createdLdap, err := r.client.GetLdap(plan.Id.ValueString())
+	createdLdap, err := r.client.GetLdap(plan.Owner.ValueString() + "/" + plan.Id.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading LDAP",
@@ -284,7 +284,7 @@ func (r *LdapResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	ldap, err := getByOwnerName[casdoorsdk.Ldap](r.client, "get-ldap", state.Owner.ValueString(), state.Id.ValueString())
+	ldap, err := r.client.GetLdap(state.Owner.ValueString() + "/" + state.Id.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading LDAP",

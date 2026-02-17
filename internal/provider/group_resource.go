@@ -247,7 +247,7 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	// Read back the group to get server-generated values like CreatedTime.
-	createdGroup, err := r.client.GetGroup(plan.Name.ValueString())
+	createdGroup, err := r.client.GetGroup(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Group",
@@ -289,7 +289,7 @@ func (r *GroupResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	group, err := getByOwnerName[casdoorsdk.Group](r.client, "get-group", state.Owner.ValueString(), state.Name.ValueString())
+	group, err := r.client.GetGroup(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Group",
@@ -365,7 +365,7 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	// Read back to get updated fields.
-	updatedGroup, err := r.client.GetGroup(plan.Name.ValueString())
+	updatedGroup, err := r.client.GetGroup(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Group",
@@ -381,7 +381,6 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	plan.UpdatedTime = types.StringValue(updatedGroup.UpdatedTime)
 	plan.ParentName = types.StringValue(updatedGroup.ParentName)
 	plan.Title = types.StringValue(updatedGroup.Title)
 	plan.Key = types.StringValue(updatedGroup.Key)

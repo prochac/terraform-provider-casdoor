@@ -450,7 +450,7 @@ func (r *SyncerResource) Create(ctx context.Context, req resource.CreateRequest,
 	}
 
 	// Read back the syncer to get server-generated values.
-	createdSyncer, err := r.client.GetSyncer(plan.Name.ValueString())
+	createdSyncer, err := r.client.GetSyncer(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Syncer",
@@ -482,7 +482,7 @@ func (r *SyncerResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	syncer, err := getByOwnerName[casdoorsdk.Syncer](r.client, "get-syncer", state.Owner.ValueString(), state.Name.ValueString())
+	syncer, err := r.client.GetSyncer(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Syncer",
@@ -559,7 +559,7 @@ func (r *SyncerResource) Update(ctx context.Context, req resource.UpdateRequest,
 	}
 
 	// Read back to get error_text if any.
-	updatedSyncer, err := r.client.GetSyncer(plan.Name.ValueString())
+	updatedSyncer, err := r.client.GetSyncer(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err == nil && updatedSyncer != nil {
 		plan.ErrorText = types.StringValue(updatedSyncer.ErrorText)
 	}

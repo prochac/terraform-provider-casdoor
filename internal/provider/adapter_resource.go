@@ -214,7 +214,7 @@ func (r *AdapterResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	// Read back the adapter to get server-generated values like CreatedTime.
-	createdAdapter, err := r.client.GetAdapter(plan.Name.ValueString())
+	createdAdapter, err := r.client.GetAdapter(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Adapter",
@@ -239,7 +239,7 @@ func (r *AdapterResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	adapter, err := getByOwnerName[casdoorsdk.Adapter](r.client, "get-adapter", state.Owner.ValueString(), state.Name.ValueString())
+	adapter, err := r.client.GetAdapter(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Adapter",

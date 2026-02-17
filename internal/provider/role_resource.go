@@ -192,7 +192,7 @@ func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Read back the role to get server-generated values like CreatedTime.
-	createdRole, err := r.client.GetRole(plan.Name.ValueString())
+	createdRole, err := r.client.GetRole(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Role",
@@ -227,7 +227,7 @@ func (r *RoleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	role, err := getByOwnerName[casdoorsdk.Role](r.client, "get-role", state.Owner.ValueString(), state.Name.ValueString())
+	role, err := r.client.GetRole(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Role",

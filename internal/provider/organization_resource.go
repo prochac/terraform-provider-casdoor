@@ -645,7 +645,7 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	// Read back the organization to get server-generated values like CreatedTime.
-	createdOrg, err := r.client.GetOrganization(plan.Name.ValueString())
+	createdOrg, err := r.client.GetOrganization(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Organization",
@@ -696,7 +696,7 @@ func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 
-	org, err := getByOwnerName[casdoorsdk.Organization](r.client, "get-organization", state.Owner.ValueString(), state.Name.ValueString())
+	org, err := r.client.GetOrganization(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Organization",

@@ -1382,7 +1382,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Read back the created application to get computed fields.
-	createdApp, err := r.client.GetApplication(plan.Name.ValueString())
+	createdApp, err := r.client.GetApplication(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Application",
@@ -1654,7 +1654,7 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	app, err := getByOwnerName[casdoorsdk.Application](r.client, "get-application", state.Owner.ValueString(), state.Name.ValueString())
+	app, err := r.client.GetApplication(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Application",

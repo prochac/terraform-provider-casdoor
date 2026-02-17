@@ -219,7 +219,7 @@ func (r *CertResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Read back the cert to get generated values.
-	createdCert, err := r.client.GetCert(plan.Name.ValueString())
+	createdCert, err := r.client.GetCert(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Certificate After Create",
@@ -257,7 +257,7 @@ func (r *CertResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	cert, err := getByOwnerName[casdoorsdk.Cert](r.client, "get-cert", state.Owner.ValueString(), state.Name.ValueString())
+	cert, err := r.client.GetCert(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Certificate",

@@ -202,7 +202,7 @@ func (r *ModelResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	// Read back the model to get server-generated values like CreatedTime.
-	createdModel, err := r.client.GetModel(plan.Name.ValueString())
+	createdModel, err := r.client.GetModel(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Model",
@@ -235,7 +235,7 @@ func (r *ModelResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	model, err := getByOwnerName[casdoorsdk.Model](r.client, "get-model", state.Owner.ValueString(), state.Name.ValueString())
+	model, err := r.client.GetModel(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Model",
@@ -287,7 +287,7 @@ func (r *ModelResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	// Read back to get server-normalized values.
-	updatedModel, err := r.client.GetModel(plan.Name.ValueString())
+	updatedModel, err := r.client.GetModel(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Model",
@@ -303,7 +303,6 @@ func (r *ModelResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	plan.UpdatedTime = types.StringValue(updatedModel.UpdatedTime)
 	plan.ModelText = types.StringValue(updatedModel.ModelText)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())

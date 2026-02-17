@@ -244,7 +244,7 @@ func (r *TokenResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	// Read back the token to get generated values.
-	createdToken, err := r.client.GetToken(plan.Name.ValueString())
+	createdToken, err := r.client.GetToken(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Token After Create",
@@ -273,7 +273,7 @@ func (r *TokenResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	token, err := getByOwnerName[casdoorsdk.Token](r.client, "get-token", state.Owner.ValueString(), state.Name.ValueString())
+	token, err := r.client.GetToken(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Token",

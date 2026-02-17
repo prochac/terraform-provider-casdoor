@@ -198,7 +198,7 @@ func (r *EnforcerResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	// Read back the enforcer to get server-generated values.
-	createdEnforcer, err := r.client.GetEnforcer(plan.Name.ValueString())
+	createdEnforcer, err := r.client.GetEnforcer(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Enforcer",
@@ -237,7 +237,7 @@ func (r *EnforcerResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	enforcer, err := getByOwnerName[casdoorsdk.Enforcer](r.client, "get-enforcer", state.Owner.ValueString(), state.Name.ValueString())
+	enforcer, err := r.client.GetEnforcer(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Enforcer",
@@ -298,7 +298,7 @@ func (r *EnforcerResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 
 	// Read back to get server-updated fields.
-	updatedEnforcer, err := r.client.GetEnforcer(plan.Name.ValueString())
+	updatedEnforcer, err := r.client.GetEnforcer(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Enforcer",
@@ -313,8 +313,6 @@ func (r *EnforcerResource) Update(ctx context.Context, req resource.UpdateReques
 		)
 		return
 	}
-
-	plan.UpdatedTime = types.StringValue(updatedEnforcer.UpdatedTime)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)

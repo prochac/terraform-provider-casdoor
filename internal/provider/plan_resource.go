@@ -229,7 +229,7 @@ func (r *PlanResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Read back the plan to get server-generated values.
-	createdPlan, err := r.client.GetPlan(plan.Name.ValueString())
+	createdPlan, err := r.client.GetPlan(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Plan",
@@ -266,7 +266,7 @@ func (r *PlanResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	planObj, err := getByOwnerName[casdoorsdk.Plan](r.client, "get-plan", state.Owner.ValueString(), state.Name.ValueString())
+	planObj, err := r.client.GetPlan(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Plan",

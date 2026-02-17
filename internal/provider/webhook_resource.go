@@ -313,7 +313,7 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	// Read back the webhook to get server-generated values.
-	createdWebhook, err := r.client.GetWebhook(plan.Name.ValueString())
+	createdWebhook, err := r.client.GetWebhook(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Webhook",
@@ -351,7 +351,7 @@ func (r *WebhookResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	webhook, err := getByOwnerName[casdoorsdk.Webhook](r.client, "get-webhook", state.Owner.ValueString(), state.Name.ValueString())
+	webhook, err := r.client.GetWebhook(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Webhook",

@@ -219,7 +219,7 @@ func (r *PricingResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	// Read back the pricing to get server-generated values.
-	createdPricing, err := r.client.GetPricing(plan.Name.ValueString())
+	createdPricing, err := r.client.GetPricing(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Pricing",
@@ -252,7 +252,7 @@ func (r *PricingResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	pricing, err := getByOwnerName[casdoorsdk.Pricing](r.client, "get-pricing", state.Owner.ValueString(), state.Name.ValueString())
+	pricing, err := r.client.GetPricing(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Pricing",

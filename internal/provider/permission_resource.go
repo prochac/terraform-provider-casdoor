@@ -274,7 +274,7 @@ func (r *PermissionResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	// Read back the permission to get server-generated values like CreatedTime.
-	createdPermission, err := r.client.GetPermission(plan.Name.ValueString())
+	createdPermission, err := r.client.GetPermission(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Permission",
@@ -313,7 +313,7 @@ func (r *PermissionResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	permission, err := getByOwnerName[casdoorsdk.Permission](r.client, "get-permission", state.Owner.ValueString(), state.Name.ValueString())
+	permission, err := r.client.GetPermission(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Permission",

@@ -276,7 +276,7 @@ func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	// Read back the product to get server-generated values.
-	createdProduct, err := r.client.GetProduct(plan.Name.ValueString())
+	createdProduct, err := r.client.GetProduct(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Product",
@@ -312,7 +312,7 @@ func (r *ProductResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	product, err := getByOwnerName[casdoorsdk.Product](r.client, "get-product", state.Owner.ValueString(), state.Name.ValueString())
+	product, err := r.client.GetProduct(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Product",
@@ -372,7 +372,7 @@ func (r *ProductResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 
 	// Read back to get server-updated fields.
-	updatedProduct, err := r.client.GetProduct(plan.Name.ValueString())
+	updatedProduct, err := r.client.GetProduct(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Product",

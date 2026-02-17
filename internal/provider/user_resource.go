@@ -1412,7 +1412,7 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Read back the user to get the generated ID.
-	createdUser, err := r.client.GetUser(plan.Name.ValueString())
+	createdUser, err := r.client.GetUser(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading User After Create",
@@ -1520,7 +1520,7 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	user, err := getByOwnerName[casdoorsdk.User](r.client, "get-user", state.Owner.ValueString(), state.Name.ValueString())
+	user, err := r.client.GetUser(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading User",
@@ -1947,7 +1947,7 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 
 	// Read the existing user to preserve the Casdoor-internal Id field,
 	// which is immutable and must not change during updates.
-	existingUser, err := r.client.GetUser(plan.Name.ValueString())
+	existingUser, err := r.client.GetUser(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading User Before Update",

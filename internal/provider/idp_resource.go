@@ -480,7 +480,7 @@ func (r *IdpResource) Create(ctx context.Context, req resource.CreateRequest, re
 	}
 
 	// Read back the provider to get server-generated values.
-	createdProvider, err := r.client.GetProvider(plan.Name.ValueString())
+	createdProvider, err := r.client.GetProvider(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Provider",
@@ -505,7 +505,7 @@ func (r *IdpResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	}
 
-	provider, err := getByOwnerName[casdoorsdk.Provider](r.client, "get-provider", state.Owner.ValueString(), state.Name.ValueString())
+	provider, err := r.client.GetProvider(state.Owner.ValueString() + "/" + state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Provider",
