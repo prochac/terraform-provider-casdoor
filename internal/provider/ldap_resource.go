@@ -186,36 +186,26 @@ func (r *LdapResource) Configure(_ context.Context, req resource.ConfigureReques
 	r.client = client
 }
 
-func (r *LdapResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan LdapResourceModel
+func ldapPlanToSDK(ctx context.Context, plan LdapResourceModel, createdTime, lastSync string) (*casdoorsdk.Ldap, diag.Diagnostics) {
+	var diags diag.Diagnostics
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	filterFields, diags := stringListToSDK(ctx, plan.FilterFields)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
+	filterFields, d := stringListToSDK(ctx, plan.FilterFields)
+	diags.Append(d...)
+	if diags.HasError() {
+		return nil, diags
 	}
 
 	// Convert custom_attributes map to Go map.
 	var customAttributes map[string]string
 	if !plan.CustomAttributes.IsNull() {
 		customAttributes = make(map[string]string)
-		resp.Diagnostics.Append(plan.CustomAttributes.ElementsAs(ctx, &customAttributes, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.CustomAttributes.ElementsAs(ctx, &customAttributes, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 	}
 
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	ldap := &casdoorsdk.Ldap{
+	return &casdoorsdk.Ldap{
 		Id:                  plan.Id.ValueString(),
 		Owner:               plan.Owner.ValueString(),
 		CreatedTime:         createdTime,
@@ -233,6 +223,27 @@ func (r *LdapResource) Create(ctx context.Context, req resource.CreateRequest, r
 		PasswordType:        plan.PasswordType.ValueString(),
 		CustomAttributes:    customAttributes,
 		AutoSync:            int(plan.AutoSync.ValueInt64()),
+		LastSync:            lastSync,
+	}, diags
+}
+
+func (r *LdapResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan LdapResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	ldap, diags := ldapPlanToSDK(ctx, plan, createdTime, "")
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddLdap(ldap)
@@ -256,9 +267,9 @@ func (r *LdapResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Set list values to null if empty to match plan.
-	plan.FilterFields, diags = stringListFromSDK(ctx, filterFields)
+	plan.FilterFields, diags = stringListFromSDK(ctx, ldap.FilterFields)
 	resp.Diagnostics.Append(diags...)
-	if len(customAttributes) == 0 {
+	if len(ldap.CustomAttributes) == 0 {
 		plan.CustomAttributes = types.MapNull(types.StringType)
 	}
 
@@ -344,41 +355,10 @@ func (r *LdapResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	filterFields, diags := stringListToSDK(ctx, plan.FilterFields)
+	ldap, diags := ldapPlanToSDK(ctx, plan, plan.CreatedTime.ValueString(), plan.LastSync.ValueString())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	// Convert custom_attributes map to Go map.
-	var customAttributes map[string]string
-	if !plan.CustomAttributes.IsNull() {
-		customAttributes = make(map[string]string)
-		resp.Diagnostics.Append(plan.CustomAttributes.ElementsAs(ctx, &customAttributes, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-	}
-
-	ldap := &casdoorsdk.Ldap{
-		Id:                  plan.Id.ValueString(),
-		Owner:               plan.Owner.ValueString(),
-		CreatedTime:         plan.CreatedTime.ValueString(),
-		ServerName:          plan.ServerName.ValueString(),
-		Host:                plan.Host.ValueString(),
-		Port:                int(plan.Port.ValueInt64()),
-		EnableSsl:           plan.EnableSsl.ValueBool(),
-		AllowSelfSignedCert: plan.AllowSelfSignedCert.ValueBool(),
-		Username:            plan.Username.ValueString(),
-		Password:            plan.Password.ValueString(),
-		BaseDn:              plan.BaseDn.ValueString(),
-		Filter:              plan.Filter.ValueString(),
-		FilterFields:        filterFields,
-		DefaultGroup:        plan.DefaultGroup.ValueString(),
-		PasswordType:        plan.PasswordType.ValueString(),
-		CustomAttributes:    customAttributes,
-		AutoSync:            int(plan.AutoSync.ValueInt64()),
-		LastSync:            plan.LastSync.ValueString(),
 	}
 
 	ok, err := r.client.UpdateLdap(ldap)
@@ -387,9 +367,9 @@ func (r *LdapResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	// Set list values to null if empty to match plan.
-	plan.FilterFields, diags = stringListFromSDK(ctx, filterFields)
+	plan.FilterFields, diags = stringListFromSDK(ctx, ldap.FilterFields)
 	resp.Diagnostics.Append(diags...)
-	if len(customAttributes) == 0 {
+	if len(ldap.CustomAttributes) == 0 {
 		plan.CustomAttributes = types.MapNull(types.StringType)
 	}
 

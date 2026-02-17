@@ -498,44 +498,36 @@ func (r *OrganizationResource) Configure(_ context.Context, req resource.Configu
 	r.client = client
 }
 
-func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan OrganizationResourceModel
-
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	// Convert list types to Go slices.
+func organizationPlanToSDK(ctx context.Context, plan OrganizationResourceModel, createdTime string) (*casdoorsdk.Organization, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
-	passwordOptions, diags := stringListToSDK(ctx, plan.PasswordOptions)
-	resp.Diagnostics.Append(diags...)
-	countryCodes, diags := stringListToSDK(ctx, plan.CountryCodes)
-	resp.Diagnostics.Append(diags...)
-	userTypes, diags := stringListToSDK(ctx, plan.UserTypes)
-	resp.Diagnostics.Append(diags...)
-	tags, diags := stringListToSDK(ctx, plan.Tags)
-	resp.Diagnostics.Append(diags...)
-	languages, diags := stringListToSDK(ctx, plan.Languages)
-	resp.Diagnostics.Append(diags...)
-	navItems, diags := stringListToSDK(ctx, plan.NavItems)
-	resp.Diagnostics.Append(diags...)
-	userNavItems, diags := stringListToSDK(ctx, plan.UserNavItems)
-	resp.Diagnostics.Append(diags...)
-	widgetItems, diags := stringListToSDK(ctx, plan.WidgetItems)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
+	passwordOptions, d := stringListToSDK(ctx, plan.PasswordOptions)
+	diags.Append(d...)
+	countryCodes, d := stringListToSDK(ctx, plan.CountryCodes)
+	diags.Append(d...)
+	userTypes, d := stringListToSDK(ctx, plan.UserTypes)
+	diags.Append(d...)
+	tags, d := stringListToSDK(ctx, plan.Tags)
+	diags.Append(d...)
+	languages, d := stringListToSDK(ctx, plan.Languages)
+	diags.Append(d...)
+	navItems, d := stringListToSDK(ctx, plan.NavItems)
+	diags.Append(d...)
+	userNavItems, d := stringListToSDK(ctx, plan.UserNavItems)
+	diags.Append(d...)
+	widgetItems, d := stringListToSDK(ctx, plan.WidgetItems)
+	diags.Append(d...)
+	if diags.HasError() {
+		return nil, diags
 	}
 
 	// Convert nested objects.
 	var themeData *casdoorsdk.ThemeData
 	if !plan.ThemeData.IsNull() {
 		var themeModel ThemeDataModel
-		resp.Diagnostics.Append(plan.ThemeData.As(ctx, &themeModel, basetypes.ObjectAsOptions{})...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.ThemeData.As(ctx, &themeModel, basetypes.ObjectAsOptions{})...)
+		if diags.HasError() {
+			return nil, diags
 		}
 		themeData = &casdoorsdk.ThemeData{
 			ThemeType:    themeModel.ThemeType.ValueString(),
@@ -549,9 +541,9 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	mfaItems := make([]*casdoorsdk.MfaItem, 0)
 	if !plan.MfaItems.IsNull() {
 		var mfaModels []MfaItemModel
-		resp.Diagnostics.Append(plan.MfaItems.ElementsAs(ctx, &mfaModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.MfaItems.ElementsAs(ctx, &mfaModels, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 		for _, m := range mfaModels {
 			mfaItems = append(mfaItems, &casdoorsdk.MfaItem{
@@ -564,9 +556,9 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	accountItems := make([]*casdoorsdk.AccountItem, 0)
 	if !plan.AccountItems.IsNull() {
 		var accountModels []AccountItemModel
-		resp.Diagnostics.Append(plan.AccountItems.ElementsAs(ctx, &accountModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.AccountItems.ElementsAs(ctx, &accountModels, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 		for _, a := range accountModels {
 			accountItems = append(accountItems, &casdoorsdk.AccountItem{
@@ -579,12 +571,7 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 		}
 	}
 
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	org := &casdoorsdk.Organization{
+	return &casdoorsdk.Organization{
 		Owner:                  plan.Owner.ValueString(),
 		Name:                   plan.Name.ValueString(),
 		CreatedTime:            createdTime,
@@ -630,6 +617,26 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 		BalanceCurrency:        plan.BalanceCurrency.ValueString(),
 		AccountMenu:            plan.AccountMenu.ValueString(),
 		DcrPolicy:              plan.DcrPolicy.ValueString(),
+	}, diags
+}
+
+func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan OrganizationResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	org, diags := organizationPlanToSDK(ctx, plan, createdTime)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddOrganization(org)
@@ -653,26 +660,26 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	// Set list values to null if empty to match plan.
-	plan.PasswordOptions, diags = stringListFromSDK(ctx, passwordOptions)
+	plan.PasswordOptions, diags = stringListFromSDK(ctx, org.PasswordOptions)
 	resp.Diagnostics.Append(diags...)
-	plan.CountryCodes, diags = stringListFromSDK(ctx, countryCodes)
+	plan.CountryCodes, diags = stringListFromSDK(ctx, org.CountryCodes)
 	resp.Diagnostics.Append(diags...)
-	plan.UserTypes, diags = stringListFromSDK(ctx, userTypes)
+	plan.UserTypes, diags = stringListFromSDK(ctx, org.UserTypes)
 	resp.Diagnostics.Append(diags...)
-	plan.Tags, diags = stringListFromSDK(ctx, tags)
+	plan.Tags, diags = stringListFromSDK(ctx, org.Tags)
 	resp.Diagnostics.Append(diags...)
-	plan.Languages, diags = stringListFromSDK(ctx, languages)
+	plan.Languages, diags = stringListFromSDK(ctx, org.Languages)
 	resp.Diagnostics.Append(diags...)
-	plan.NavItems, diags = stringListFromSDK(ctx, navItems)
+	plan.NavItems, diags = stringListFromSDK(ctx, org.NavItems)
 	resp.Diagnostics.Append(diags...)
-	plan.UserNavItems, diags = stringListFromSDK(ctx, userNavItems)
+	plan.UserNavItems, diags = stringListFromSDK(ctx, org.UserNavItems)
 	resp.Diagnostics.Append(diags...)
-	plan.WidgetItems, diags = stringListFromSDK(ctx, widgetItems)
+	plan.WidgetItems, diags = stringListFromSDK(ctx, org.WidgetItems)
 	resp.Diagnostics.Append(diags...)
-	if len(mfaItems) == 0 {
+	if len(org.MfaItems) == 0 {
 		plan.MfaItems = types.ListNull(types.ObjectType{AttrTypes: MfaItemAttrTypes()})
 	}
-	if len(accountItems) == 0 {
+	if len(org.AccountItems) == 0 {
 		plan.AccountItems = types.ListNull(types.ObjectType{AttrTypes: AccountItemAttrTypes()})
 	}
 
@@ -851,125 +858,10 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 
-	// Convert list types to Go slices.
-	var diags diag.Diagnostics
-
-	passwordOptions, diags := stringListToSDK(ctx, plan.PasswordOptions)
-	resp.Diagnostics.Append(diags...)
-	countryCodes, diags := stringListToSDK(ctx, plan.CountryCodes)
-	resp.Diagnostics.Append(diags...)
-	userTypes, diags := stringListToSDK(ctx, plan.UserTypes)
-	resp.Diagnostics.Append(diags...)
-	tags, diags := stringListToSDK(ctx, plan.Tags)
-	resp.Diagnostics.Append(diags...)
-	languages, diags := stringListToSDK(ctx, plan.Languages)
-	resp.Diagnostics.Append(diags...)
-	navItems, diags := stringListToSDK(ctx, plan.NavItems)
-	resp.Diagnostics.Append(diags...)
-	userNavItems, diags := stringListToSDK(ctx, plan.UserNavItems)
-	resp.Diagnostics.Append(diags...)
-	widgetItems, diags := stringListToSDK(ctx, plan.WidgetItems)
+	org, diags := organizationPlanToSDK(ctx, plan, plan.CreatedTime.ValueString())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	// Convert nested objects.
-	var themeData *casdoorsdk.ThemeData
-	if !plan.ThemeData.IsNull() {
-		var themeModel ThemeDataModel
-		resp.Diagnostics.Append(plan.ThemeData.As(ctx, &themeModel, basetypes.ObjectAsOptions{})...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		themeData = &casdoorsdk.ThemeData{
-			ThemeType:    themeModel.ThemeType.ValueString(),
-			ColorPrimary: themeModel.ColorPrimary.ValueString(),
-			BorderRadius: int(themeModel.BorderRadius.ValueInt64()),
-			IsCompact:    themeModel.IsCompact.ValueBool(),
-			IsEnabled:    themeModel.IsEnabled.ValueBool(),
-		}
-	}
-
-	mfaItems := make([]*casdoorsdk.MfaItem, 0)
-	if !plan.MfaItems.IsNull() {
-		var mfaModels []MfaItemModel
-		resp.Diagnostics.Append(plan.MfaItems.ElementsAs(ctx, &mfaModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		for _, m := range mfaModels {
-			mfaItems = append(mfaItems, &casdoorsdk.MfaItem{
-				Name: m.Name.ValueString(),
-				Rule: m.Rule.ValueString(),
-			})
-		}
-	}
-
-	accountItems := make([]*casdoorsdk.AccountItem, 0)
-	if !plan.AccountItems.IsNull() {
-		var accountModels []AccountItemModel
-		resp.Diagnostics.Append(plan.AccountItems.ElementsAs(ctx, &accountModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		for _, a := range accountModels {
-			accountItems = append(accountItems, &casdoorsdk.AccountItem{
-				Name:       a.Name.ValueString(),
-				Visible:    a.Visible.ValueBool(),
-				ViewRule:   a.ViewRule.ValueString(),
-				ModifyRule: a.ModifyRule.ValueString(),
-				Regex:      a.Regex.ValueString(),
-			})
-		}
-	}
-
-	org := &casdoorsdk.Organization{
-		Owner:                  plan.Owner.ValueString(),
-		Name:                   plan.Name.ValueString(),
-		CreatedTime:            plan.CreatedTime.ValueString(),
-		DisplayName:            plan.DisplayName.ValueString(),
-		WebsiteUrl:             plan.WebsiteURL.ValueString(),
-		Logo:                   plan.Logo.ValueString(),
-		LogoDark:               plan.LogoDark.ValueString(),
-		Favicon:                plan.Favicon.ValueString(),
-		HasPrivilegeConsent:    plan.HasPrivilegeConsent.ValueBool(),
-		PasswordType:           plan.PasswordType.ValueString(),
-		PasswordSalt:           plan.PasswordSalt.ValueString(),
-		PasswordOptions:        passwordOptions,
-		PasswordObfuscatorType: plan.PasswordObfuscatorType.ValueString(),
-		PasswordObfuscatorKey:  plan.PasswordObfuscatorKey.ValueString(),
-		PasswordExpireDays:     int(plan.PasswordExpireDays.ValueInt64()),
-		CountryCodes:           countryCodes,
-		DefaultAvatar:          plan.DefaultAvatar.ValueString(),
-		DefaultApplication:     plan.DefaultApplication.ValueString(),
-		UserTypes:              userTypes,
-		Tags:                   tags,
-		Languages:              languages,
-		ThemeData:              themeData,
-		MasterPassword:         plan.MasterPassword.ValueString(),
-		DefaultPassword:        plan.DefaultPassword.ValueString(),
-		MasterVerificationCode: plan.MasterVerificationCode.ValueString(),
-		IpWhitelist:            plan.IPWhitelist.ValueString(),
-		InitScore:              int(plan.InitScore.ValueInt64()),
-		EnableSoftDeletion:     plan.EnableSoftDeletion.ValueBool(),
-		IsProfilePublic:        plan.IsProfilePublic.ValueBool(),
-		UseEmailAsUsername:     plan.UseEmailAsUsername.ValueBool(),
-		EnableTour:             plan.EnableTour.ValueBool(),
-		DisableSignin:          plan.DisableSignin.ValueBool(),
-		IpRestriction:          plan.IPRestriction.ValueString(),
-		NavItems:               navItems,
-		UserNavItems:           userNavItems,
-		WidgetItems:            widgetItems,
-		MfaItems:               mfaItems,
-		MfaRememberInHours:     int(plan.MfaRememberInHours.ValueInt64()),
-		AccountItems:           accountItems,
-		OrgBalance:             plan.OrgBalance.ValueFloat64(),
-		UserBalance:            plan.UserBalance.ValueFloat64(),
-		BalanceCredit:          plan.BalanceCredit.ValueFloat64(),
-		BalanceCurrency:        plan.BalanceCurrency.ValueString(),
-		AccountMenu:            plan.AccountMenu.ValueString(),
-		DcrPolicy:              plan.DcrPolicy.ValueString(),
 	}
 
 	ok, err := r.client.UpdateOrganization(org)
@@ -978,26 +870,26 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 
 	// Set list values to null if empty to match plan.
-	plan.PasswordOptions, diags = stringListFromSDK(ctx, passwordOptions)
+	plan.PasswordOptions, diags = stringListFromSDK(ctx, org.PasswordOptions)
 	resp.Diagnostics.Append(diags...)
-	plan.CountryCodes, diags = stringListFromSDK(ctx, countryCodes)
+	plan.CountryCodes, diags = stringListFromSDK(ctx, org.CountryCodes)
 	resp.Diagnostics.Append(diags...)
-	plan.UserTypes, diags = stringListFromSDK(ctx, userTypes)
+	plan.UserTypes, diags = stringListFromSDK(ctx, org.UserTypes)
 	resp.Diagnostics.Append(diags...)
-	plan.Tags, diags = stringListFromSDK(ctx, tags)
+	plan.Tags, diags = stringListFromSDK(ctx, org.Tags)
 	resp.Diagnostics.Append(diags...)
-	plan.Languages, diags = stringListFromSDK(ctx, languages)
+	plan.Languages, diags = stringListFromSDK(ctx, org.Languages)
 	resp.Diagnostics.Append(diags...)
-	plan.NavItems, diags = stringListFromSDK(ctx, navItems)
+	plan.NavItems, diags = stringListFromSDK(ctx, org.NavItems)
 	resp.Diagnostics.Append(diags...)
-	plan.UserNavItems, diags = stringListFromSDK(ctx, userNavItems)
+	plan.UserNavItems, diags = stringListFromSDK(ctx, org.UserNavItems)
 	resp.Diagnostics.Append(diags...)
-	plan.WidgetItems, diags = stringListFromSDK(ctx, widgetItems)
+	plan.WidgetItems, diags = stringListFromSDK(ctx, org.WidgetItems)
 	resp.Diagnostics.Append(diags...)
-	if len(mfaItems) == 0 {
+	if len(org.MfaItems) == 0 {
 		plan.MfaItems = types.ListNull(types.ObjectType{AttrTypes: MfaItemAttrTypes()})
 	}
-	if len(accountItems) == 0 {
+	if len(org.AccountItems) == 0 {
 		plan.AccountItems = types.ListNull(types.ObjectType{AttrTypes: AccountItemAttrTypes()})
 	}
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -211,34 +212,24 @@ func (r *ProductResource) Configure(_ context.Context, req resource.ConfigureReq
 	r.client = client
 }
 
-func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan ProductResourceModel
+func productPlanToSDK(ctx context.Context, plan ProductResourceModel, createdTime string) (*casdoorsdk.Product, diag.Diagnostics) {
+	var diags diag.Diagnostics
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	providers, diags := stringListToSDK(ctx, plan.Providers)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
+	providers, d := stringListToSDK(ctx, plan.Providers)
+	diags.Append(d...)
+	if diags.HasError() {
+		return nil, diags
 	}
 
 	rechargeOptions := make([]float64, 0)
 	if !plan.RechargeOptions.IsNull() && !plan.RechargeOptions.IsUnknown() {
-		resp.Diagnostics.Append(plan.RechargeOptions.ElementsAs(ctx, &rechargeOptions, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.RechargeOptions.ElementsAs(ctx, &rechargeOptions, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 	}
 
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	product := &casdoorsdk.Product{
+	return &casdoorsdk.Product{
 		Owner:                 plan.Owner.ValueString(),
 		Name:                  plan.Name.ValueString(),
 		CreatedTime:           createdTime,
@@ -257,6 +248,26 @@ func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest
 		SuccessUrl:            plan.SuccessUrl.ValueString(),
 		Providers:             providers,
 		State:                 plan.State.ValueString(),
+	}, diags
+}
+
+func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan ProductResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	product, diags := productPlanToSDK(ctx, plan, createdTime)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddProduct(product)
@@ -349,39 +360,10 @@ func (r *ProductResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	providers, diags := stringListToSDK(ctx, plan.Providers)
+	product, diags := productPlanToSDK(ctx, plan, plan.CreatedTime.ValueString())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	rechargeOptions := make([]float64, 0)
-	if !plan.RechargeOptions.IsNull() && !plan.RechargeOptions.IsUnknown() {
-		resp.Diagnostics.Append(plan.RechargeOptions.ElementsAs(ctx, &rechargeOptions, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-	}
-
-	product := &casdoorsdk.Product{
-		Owner:                 plan.Owner.ValueString(),
-		Name:                  plan.Name.ValueString(),
-		CreatedTime:           plan.CreatedTime.ValueString(),
-		DisplayName:           plan.DisplayName.ValueString(),
-		Image:                 plan.Image.ValueString(),
-		Detail:                plan.Detail.ValueString(),
-		Description:           plan.Description.ValueString(),
-		Tag:                   plan.Tag.ValueString(),
-		Currency:              plan.Currency.ValueString(),
-		Price:                 plan.Price.ValueFloat64(),
-		Quantity:              int(plan.Quantity.ValueInt64()),
-		Sold:                  int(plan.Sold.ValueInt64()),
-		IsRecharge:            plan.IsRecharge.ValueBool(),
-		RechargeOptions:       rechargeOptions,
-		DisableCustomRecharge: plan.DisableCustomRecharge.ValueBool(),
-		SuccessUrl:            plan.SuccessUrl.ValueString(),
-		Providers:             providers,
-		State:                 plan.State.ValueString(),
 	}
 
 	ok, err := r.client.UpdateProduct(product)

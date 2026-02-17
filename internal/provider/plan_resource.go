@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -175,28 +176,18 @@ func (r *PlanResource) Configure(_ context.Context, req resource.ConfigureReques
 	r.client = client
 }
 
-func (r *PlanResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan PlanResourceModel
+func planPlanToSDK(ctx context.Context, plan PlanResourceModel, createdTime string) (*casdoorsdk.Plan, diag.Diagnostics) {
+	var diags diag.Diagnostics
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
+	paymentProviders, d := stringListToSDK(ctx, plan.PaymentProviders)
+	diags.Append(d...)
+	options, d := stringListToSDK(ctx, plan.Options)
+	diags.Append(d...)
+	if diags.HasError() {
+		return nil, diags
 	}
 
-	paymentProviders, diags := stringListToSDK(ctx, plan.PaymentProviders)
-	resp.Diagnostics.Append(diags...)
-	options, diags := stringListToSDK(ctx, plan.Options)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	planObj := &casdoorsdk.Plan{
+	return &casdoorsdk.Plan{
 		Owner:            plan.Owner.ValueString(),
 		Name:             plan.Name.ValueString(),
 		CreatedTime:      createdTime,
@@ -210,6 +201,26 @@ func (r *PlanResource) Create(ctx context.Context, req resource.CreateRequest, r
 		IsEnabled:        plan.IsEnabled.ValueBool(),
 		Role:             plan.Role.ValueString(),
 		Options:          options,
+	}, diags
+}
+
+func (r *PlanResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan PlanResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	planObj, diags := planPlanToSDK(ctx, plan, createdTime)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddPlan(planObj)
@@ -298,28 +309,10 @@ func (r *PlanResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	paymentProviders, diags := stringListToSDK(ctx, plan.PaymentProviders)
-	resp.Diagnostics.Append(diags...)
-	options, diags := stringListToSDK(ctx, plan.Options)
+	planObj, diags := planPlanToSDK(ctx, plan, plan.CreatedTime.ValueString())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	planObj := &casdoorsdk.Plan{
-		Owner:            plan.Owner.ValueString(),
-		Name:             plan.Name.ValueString(),
-		CreatedTime:      plan.CreatedTime.ValueString(),
-		DisplayName:      plan.DisplayName.ValueString(),
-		Description:      plan.Description.ValueString(),
-		Price:            plan.Price.ValueFloat64(),
-		Currency:         plan.Currency.ValueString(),
-		Period:           plan.Period.ValueString(),
-		Product:          plan.Product.ValueString(),
-		PaymentProviders: paymentProviders,
-		IsEnabled:        plan.IsEnabled.ValueBool(),
-		Role:             plan.Role.ValueString(),
-		Options:          options,
 	}
 
 	ok, err := r.client.UpdatePlan(planObj)

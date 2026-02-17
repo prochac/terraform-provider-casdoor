@@ -9,6 +9,7 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -146,6 +147,32 @@ func (r *EnforcerResource) Configure(_ context.Context, req resource.ConfigureRe
 	r.client = client
 }
 
+func enforcerPlanToSDK(ctx context.Context, plan EnforcerResourceModel, createdTime, updatedTime string) (*casdoorsdk.Enforcer, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	var modelCfg map[string]string
+	if !plan.ModelCfg.IsNull() {
+		modelCfg = make(map[string]string)
+		diags.Append(plan.ModelCfg.ElementsAs(ctx, &modelCfg, false)...)
+		if diags.HasError() {
+			return nil, diags
+		}
+	}
+
+	return &casdoorsdk.Enforcer{
+		Owner:       plan.Owner.ValueString(),
+		Name:        plan.Name.ValueString(),
+		CreatedTime: createdTime,
+		UpdatedTime: updatedTime,
+		DisplayName: plan.DisplayName.ValueString(),
+		Description: plan.Description.ValueString(),
+		Model:       plan.Model.ValueString(),
+		Adapter:     plan.Adapter.ValueString(),
+		ModelCfg:    modelCfg,
+		IsEnabled:   plan.IsEnabled.ValueBool(),
+	}, diags
+}
+
 func (r *EnforcerResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan EnforcerResourceModel
 
@@ -154,30 +181,15 @@ func (r *EnforcerResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	var modelCfg map[string]string
-	if !plan.ModelCfg.IsNull() {
-		modelCfg = make(map[string]string)
-		resp.Diagnostics.Append(plan.ModelCfg.ElementsAs(ctx, &modelCfg, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-	}
-
 	createdTime := plan.CreatedTime.ValueString()
 	if createdTime == "" {
 		createdTime = time.Now().UTC().Format(time.RFC3339)
 	}
 
-	enforcer := &casdoorsdk.Enforcer{
-		Owner:       plan.Owner.ValueString(),
-		Name:        plan.Name.ValueString(),
-		CreatedTime: createdTime,
-		DisplayName: plan.DisplayName.ValueString(),
-		Description: plan.Description.ValueString(),
-		Model:       plan.Model.ValueString(),
-		Adapter:     plan.Adapter.ValueString(),
-		ModelCfg:    modelCfg,
-		IsEnabled:   plan.IsEnabled.ValueBool(),
+	enforcer, diags := enforcerPlanToSDK(ctx, plan, createdTime, "")
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddEnforcer(enforcer)
@@ -274,26 +286,10 @@ func (r *EnforcerResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	var modelCfg map[string]string
-	if !plan.ModelCfg.IsNull() {
-		modelCfg = make(map[string]string)
-		resp.Diagnostics.Append(plan.ModelCfg.ElementsAs(ctx, &modelCfg, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-	}
-
-	enforcer := &casdoorsdk.Enforcer{
-		Owner:       plan.Owner.ValueString(),
-		Name:        plan.Name.ValueString(),
-		CreatedTime: plan.CreatedTime.ValueString(),
-		UpdatedTime: plan.UpdatedTime.ValueString(),
-		DisplayName: plan.DisplayName.ValueString(),
-		Description: plan.Description.ValueString(),
-		Model:       plan.Model.ValueString(),
-		Adapter:     plan.Adapter.ValueString(),
-		ModelCfg:    modelCfg,
-		IsEnabled:   plan.IsEnabled.ValueBool(),
+	enforcer, diags := enforcerPlanToSDK(ctx, plan, plan.CreatedTime.ValueString(), plan.UpdatedTime.ValueString())
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.UpdateEnforcer(enforcer)

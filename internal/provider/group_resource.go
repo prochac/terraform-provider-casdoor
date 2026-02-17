@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -193,30 +194,20 @@ func (r *GroupResource) Configure(_ context.Context, req resource.ConfigureReque
 	r.client = client
 }
 
-func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan GroupResourceModel
+func groupPlanToSDK(ctx context.Context, plan GroupResourceModel, createdTime, updatedTime string) (*casdoorsdk.Group, diag.Diagnostics) {
+	var diags diag.Diagnostics
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
+	users, d := stringListToSDK(ctx, plan.Users)
+	diags.Append(d...)
+	if diags.HasError() {
+		return nil, diags
 	}
 
-	users, diags := stringListToSDK(ctx, plan.Users)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	group := &casdoorsdk.Group{
+	return &casdoorsdk.Group{
 		Owner:        plan.Owner.ValueString(),
 		Name:         plan.Name.ValueString(),
 		CreatedTime:  createdTime,
-		UpdatedTime:  createdTime,
+		UpdatedTime:  updatedTime,
 		DisplayName:  plan.DisplayName.ValueString(),
 		Manager:      plan.Manager.ValueString(),
 		ContactEmail: plan.ContactEmail.ValueString(),
@@ -228,6 +219,26 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 		IsTopGroup:   plan.IsTopGroup.ValueBool(),
 		Users:        users,
 		IsEnabled:    plan.IsEnabled.ValueBool(),
+	}, diags
+}
+
+func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan GroupResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	group, diags := groupPlanToSDK(ctx, plan, createdTime, createdTime)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddGroup(group)

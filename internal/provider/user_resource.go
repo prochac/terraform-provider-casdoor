@@ -1164,36 +1164,37 @@ func (r *UserResource) Configure(_ context.Context, req resource.ConfigureReques
 	r.client = client
 }
 
-func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan UserResourceModel
+// userPlanToSDK converts a UserResourceModel into a casdoorsdk.User struct.
+// createdTime and updatedTime are passed explicitly because Create and Update
+// handle them differently. internalID is the Casdoor-internal Id field
+// (populated only during Update).
+func userPlanToSDK(ctx context.Context, plan UserResourceModel, createdTime, updatedTime, internalID string) (*casdoorsdk.User, diag.Diagnostics) {
+	var diags diag.Diagnostics
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	groups, d := stringListToSDK(ctx, plan.Groups)
+	diags.Append(d...)
+	address, d := stringListToSDK(ctx, plan.Address)
+	diags.Append(d...)
+	recoveryCodes, d := stringListToSDK(ctx, plan.RecoveryCodes)
+	diags.Append(d...)
 
-	groups, diags := stringListToSDK(ctx, plan.Groups)
-	resp.Diagnostics.Append(diags...)
-	address, diags := stringListToSDK(ctx, plan.Address)
-	resp.Diagnostics.Append(diags...)
-	recoveryCodes, diags := stringListToSDK(ctx, plan.RecoveryCodes)
-	resp.Diagnostics.Append(diags...)
 	var properties map[string]string
 	if !plan.Properties.IsNull() && !plan.Properties.IsUnknown() {
 		properties = make(map[string]string)
-		resp.Diagnostics.Append(plan.Properties.ElementsAs(ctx, &properties, false)...)
+		diags.Append(plan.Properties.ElementsAs(ctx, &properties, false)...)
 	}
+
 	var socialLogins map[string]string
 	if !plan.SocialLogins.IsNull() && !plan.SocialLogins.IsUnknown() {
 		socialLogins = make(map[string]string)
-		resp.Diagnostics.Append(plan.SocialLogins.ElementsAs(ctx, &socialLogins, false)...)
+		diags.Append(plan.SocialLogins.ElementsAs(ctx, &socialLogins, false)...)
 	}
 
 	// Extract nested list: addresses
 	addresses := make([]*casdoorsdk.Address, 0)
 	if !plan.Addresses.IsNull() && !plan.Addresses.IsUnknown() {
 		var models []AddressModel
-		resp.Diagnostics.Append(plan.Addresses.ElementsAs(ctx, &models, false)...)
+		diags.Append(plan.Addresses.ElementsAs(ctx, &models, false)...)
 		for _, m := range models {
 			addresses = append(addresses, &casdoorsdk.Address{
 				Tag:     m.Tag.ValueString(),
@@ -1211,7 +1212,7 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 	managedAccounts := make([]casdoorsdk.ManagedAccount, 0)
 	if !plan.ManagedAccounts.IsNull() && !plan.ManagedAccounts.IsUnknown() {
 		var models []ManagedAccountModel
-		resp.Diagnostics.Append(plan.ManagedAccounts.ElementsAs(ctx, &models, false)...)
+		diags.Append(plan.ManagedAccounts.ElementsAs(ctx, &models, false)...)
 		for _, m := range models {
 			managedAccounts = append(managedAccounts, casdoorsdk.ManagedAccount{
 				Application: m.Application.ValueString(),
@@ -1226,7 +1227,7 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 	mfaAccounts := make([]casdoorsdk.MfaAccount, 0)
 	if !plan.MfaAccounts.IsNull() && !plan.MfaAccounts.IsUnknown() {
 		var models []MfaAccountModel
-		resp.Diagnostics.Append(plan.MfaAccounts.ElementsAs(ctx, &models, false)...)
+		diags.Append(plan.MfaAccounts.ElementsAs(ctx, &models, false)...)
 		for _, m := range models {
 			mfaAccounts = append(mfaAccounts, casdoorsdk.MfaAccount{
 				AccountName: m.AccountName.ValueString(),
@@ -1241,7 +1242,7 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 	mfaItems := make([]*casdoorsdk.MfaItem, 0)
 	if !plan.MfaItems.IsNull() && !plan.MfaItems.IsUnknown() {
 		var models []MfaItemModel
-		resp.Diagnostics.Append(plan.MfaItems.ElementsAs(ctx, &models, false)...)
+		diags.Append(plan.MfaItems.ElementsAs(ctx, &models, false)...)
 		for _, m := range models {
 			mfaItems = append(mfaItems, &casdoorsdk.MfaItem{
 				Name: m.Name.ValueString(),
@@ -1254,11 +1255,11 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 	faceIds := make([]*casdoorsdk.FaceId, 0)
 	if !plan.FaceIds.IsNull() && !plan.FaceIds.IsUnknown() {
 		var models []FaceIdModel
-		resp.Diagnostics.Append(plan.FaceIds.ElementsAs(ctx, &models, false)...)
+		diags.Append(plan.FaceIds.ElementsAs(ctx, &models, false)...)
 		for _, m := range models {
 			var faceIdData []float64
 			if !m.FaceIdData.IsNull() && !m.FaceIdData.IsUnknown() {
-				resp.Diagnostics.Append(m.FaceIdData.ElementsAs(ctx, &faceIdData, false)...)
+				diags.Append(m.FaceIdData.ElementsAs(ctx, &faceIdData, false)...)
 			}
 			faceIds = append(faceIds, &casdoorsdk.FaceId{
 				Name:       m.Name.ValueString(),
@@ -1272,7 +1273,7 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 	cart := make([]casdoorsdk.ProductInfo, 0)
 	if !plan.Cart.IsNull() && !plan.Cart.IsUnknown() {
 		var models []ProductInfoModel
-		resp.Diagnostics.Append(plan.Cart.ElementsAs(ctx, &models, false)...)
+		diags.Append(plan.Cart.ElementsAs(ctx, &models, false)...)
 		for _, m := range models {
 			cart = append(cart, casdoorsdk.ProductInfo{
 				Owner:       m.Owner.ValueString(),
@@ -1290,20 +1291,16 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		}
 	}
 
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
+	if diags.HasError() {
+		return nil, diags
 	}
 
 	user := &casdoorsdk.User{
 		Owner:                plan.Owner.ValueString(),
 		Name:                 plan.Name.ValueString(),
+		Id:                   internalID,
 		CreatedTime:          createdTime,
-		UpdatedTime:          createdTime,
+		UpdatedTime:          updatedTime,
 		Type:                 plan.Type.ValueString(),
 		Password:             plan.Password.ValueString(),
 		PasswordType:         plan.PasswordType.ValueString(),
@@ -1387,6 +1384,28 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		}
 	}
 
+	return user, diags
+}
+
+func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan UserResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	user, diags := userPlanToSDK(ctx, plan, createdTime, createdTime, "")
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	ok, err := r.client.AddUser(user)
 	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating user %q", plan.Name.ValueString())) {
 		return
@@ -1462,31 +1481,31 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		plan.RegisterType = types.StringValue("")
 	}
 
-	plan.Groups, diags = stringListFromSDK(ctx, groups)
+	plan.Groups, diags = stringListFromSDK(ctx, user.Groups)
 	resp.Diagnostics.Append(diags...)
-	plan.Address, diags = stringListFromSDK(ctx, address)
+	plan.Address, diags = stringListFromSDK(ctx, user.Address)
 	resp.Diagnostics.Append(diags...)
-	plan.RecoveryCodes, diags = stringListFromSDK(ctx, recoveryCodes)
+	plan.RecoveryCodes, diags = stringListFromSDK(ctx, user.RecoveryCodes)
 	resp.Diagnostics.Append(diags...)
-	if len(properties) == 0 {
+	if len(user.Properties) == 0 {
 		plan.Properties = types.MapValueMust(types.StringType, map[string]attr.Value{})
 	}
-	if len(addresses) == 0 {
+	if len(user.Addresses) == 0 {
 		plan.Addresses = types.ListNull(types.ObjectType{AttrTypes: AddressAttrTypes()})
 	}
-	if len(managedAccounts) == 0 {
+	if len(user.ManagedAccounts) == 0 {
 		plan.ManagedAccounts = types.ListNull(types.ObjectType{AttrTypes: ManagedAccountAttrTypes()})
 	}
-	if len(mfaAccounts) == 0 {
+	if len(user.MfaAccounts) == 0 {
 		plan.MfaAccounts = types.ListNull(types.ObjectType{AttrTypes: MfaAccountAttrTypes()})
 	}
-	if len(mfaItems) == 0 {
+	if len(user.MfaItems) == 0 {
 		plan.MfaItems = types.ListNull(types.ObjectType{AttrTypes: MfaItemAttrTypes()})
 	}
-	if len(faceIds) == 0 {
+	if len(user.FaceIds) == 0 {
 		plan.FaceIds = types.ListNull(types.ObjectType{AttrTypes: FaceIdAttrTypes()})
 	}
-	if len(cart) == 0 {
+	if len(user.Cart) == 0 {
 		plan.Cart = types.ListNull(types.ObjectType{AttrTypes: ProductInfoAttrTypes()})
 	}
 

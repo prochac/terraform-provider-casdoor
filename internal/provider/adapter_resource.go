@@ -174,20 +174,8 @@ func (r *AdapterResource) Configure(_ context.Context, req resource.ConfigureReq
 	r.client = client
 }
 
-func (r *AdapterResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan AdapterResourceModel
-
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	adapter := &casdoorsdk.Adapter{
+func adapterPlanToSDK(plan AdapterResourceModel, createdTime string) *casdoorsdk.Adapter {
+	return &casdoorsdk.Adapter{
 		Owner:           plan.Owner.ValueString(),
 		Name:            plan.Name.ValueString(),
 		CreatedTime:     createdTime,
@@ -203,6 +191,22 @@ func (r *AdapterResource) Create(ctx context.Context, req resource.CreateRequest
 		TableNamePrefix: plan.TableNamePrefix.ValueString(),
 		IsEnabled:       plan.IsEnabled.ValueBool(),
 	}
+}
+
+func (r *AdapterResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan AdapterResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	adapter := adapterPlanToSDK(plan, createdTime)
 
 	ok, err := r.client.AddAdapter(adapter)
 	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating adapter %q", plan.Name.ValueString())) {
@@ -276,22 +280,7 @@ func (r *AdapterResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	adapter := &casdoorsdk.Adapter{
-		Owner:           plan.Owner.ValueString(),
-		Name:            plan.Name.ValueString(),
-		CreatedTime:     plan.CreatedTime.ValueString(),
-		UseSameDb:       plan.UseSameDb.ValueBool(),
-		Type:            plan.Type.ValueString(),
-		DatabaseType:    plan.DatabaseType.ValueString(),
-		Host:            plan.Host.ValueString(),
-		Port:            int(plan.Port.ValueInt64()),
-		User:            plan.User.ValueString(),
-		Password:        plan.Password.ValueString(),
-		Database:        plan.Database.ValueString(),
-		Table:           plan.Table.ValueString(),
-		TableNamePrefix: plan.TableNamePrefix.ValueString(),
-		IsEnabled:       plan.IsEnabled.ValueBool(),
-	}
+	adapter := adapterPlanToSDK(plan, plan.CreatedTime.ValueString())
 
 	ok, err := r.client.UpdateAdapter(adapter)
 	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating adapter %q", plan.Name.ValueString())) {

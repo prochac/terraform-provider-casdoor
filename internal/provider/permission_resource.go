@@ -209,36 +209,23 @@ func (r *PermissionResource) Configure(_ context.Context, req resource.Configure
 	r.client = client
 }
 
-func (r *PermissionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan PermissionResourceModel
+func permissionPlanToSDK(ctx context.Context, plan PermissionResourceModel, createdTime string) (*casdoorsdk.Permission, diag.Diagnostics) {
+	var diags diag.Diagnostics
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	users, d := stringListToSDK(ctx, plan.Users)
+	diags.Append(d...)
+	groups, d := stringListToSDK(ctx, plan.Groups)
+	diags.Append(d...)
+	roles, d := stringListToSDK(ctx, plan.Roles)
+	diags.Append(d...)
+	domains, d := stringListToSDK(ctx, plan.Domains)
+	diags.Append(d...)
+	resources, d := stringListToSDK(ctx, plan.Resources)
+	diags.Append(d...)
+	actions, d := stringListToSDK(ctx, plan.Actions)
+	diags.Append(d...)
 
-	users, diags := stringListToSDK(ctx, plan.Users)
-	resp.Diagnostics.Append(diags...)
-	groups, diags := stringListToSDK(ctx, plan.Groups)
-	resp.Diagnostics.Append(diags...)
-	roles, diags := stringListToSDK(ctx, plan.Roles)
-	resp.Diagnostics.Append(diags...)
-	domains, diags := stringListToSDK(ctx, plan.Domains)
-	resp.Diagnostics.Append(diags...)
-	resources, diags := stringListToSDK(ctx, plan.Resources)
-	resp.Diagnostics.Append(diags...)
-	actions, diags := stringListToSDK(ctx, plan.Actions)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	permission := &casdoorsdk.Permission{
+	return &casdoorsdk.Permission{
 		Owner:        plan.Owner.ValueString(),
 		Name:         plan.Name.ValueString(),
 		CreatedTime:  createdTime,
@@ -259,6 +246,26 @@ func (r *PermissionResource) Create(ctx context.Context, req resource.CreateRequ
 		Approver:     plan.Approver.ValueString(),
 		ApproveTime:  plan.ApproveTime.ValueString(),
 		State:        plan.State.ValueString(),
+	}, diags
+}
+
+func (r *PermissionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan PermissionResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	permission, diags := permissionPlanToSDK(ctx, plan, createdTime)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddPermission(permission)
@@ -281,17 +288,17 @@ func (r *PermissionResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	// Set list values to null if empty.
-	plan.Users, diags = stringListFromSDK(ctx, users)
+	plan.Users, diags = stringListFromSDK(ctx, permission.Users)
 	resp.Diagnostics.Append(diags...)
-	plan.Groups, diags = stringListFromSDK(ctx, groups)
+	plan.Groups, diags = stringListFromSDK(ctx, permission.Groups)
 	resp.Diagnostics.Append(diags...)
-	plan.Roles, diags = stringListFromSDK(ctx, roles)
+	plan.Roles, diags = stringListFromSDK(ctx, permission.Roles)
 	resp.Diagnostics.Append(diags...)
-	plan.Domains, diags = stringListFromSDK(ctx, domains)
+	plan.Domains, diags = stringListFromSDK(ctx, permission.Domains)
 	resp.Diagnostics.Append(diags...)
-	plan.Resources, diags = stringListFromSDK(ctx, resources)
+	plan.Resources, diags = stringListFromSDK(ctx, permission.Resources)
 	resp.Diagnostics.Append(diags...)
-	plan.Actions, diags = stringListFromSDK(ctx, actions)
+	plan.Actions, diags = stringListFromSDK(ctx, permission.Actions)
 	resp.Diagnostics.Append(diags...)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
@@ -365,43 +372,10 @@ func (r *PermissionResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	users, diags := stringListToSDK(ctx, plan.Users)
-	resp.Diagnostics.Append(diags...)
-	groups, diags := stringListToSDK(ctx, plan.Groups)
-	resp.Diagnostics.Append(diags...)
-	roles, diags := stringListToSDK(ctx, plan.Roles)
-	resp.Diagnostics.Append(diags...)
-	domains, diags := stringListToSDK(ctx, plan.Domains)
-	resp.Diagnostics.Append(diags...)
-	resources, diags := stringListToSDK(ctx, plan.Resources)
-	resp.Diagnostics.Append(diags...)
-	actions, diags := stringListToSDK(ctx, plan.Actions)
+	permission, diags := permissionPlanToSDK(ctx, plan, plan.CreatedTime.ValueString())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	permission := &casdoorsdk.Permission{
-		Owner:        plan.Owner.ValueString(),
-		Name:         plan.Name.ValueString(),
-		CreatedTime:  plan.CreatedTime.ValueString(),
-		DisplayName:  plan.DisplayName.ValueString(),
-		Description:  plan.Description.ValueString(),
-		Users:        users,
-		Groups:       groups,
-		Roles:        roles,
-		Domains:      domains,
-		Model:        plan.Model.ValueString(),
-		Adapter:      plan.Adapter.ValueString(),
-		ResourceType: plan.ResourceType.ValueString(),
-		Resources:    resources,
-		Actions:      actions,
-		Effect:       plan.Effect.ValueString(),
-		IsEnabled:    plan.IsEnabled.ValueBool(),
-		Submitter:    plan.Submitter.ValueString(),
-		Approver:     plan.Approver.ValueString(),
-		ApproveTime:  plan.ApproveTime.ValueString(),
-		State:        plan.State.ValueString(),
 	}
 
 	ok, err := r.client.UpdatePermission(permission)
@@ -410,17 +384,17 @@ func (r *PermissionResource) Update(ctx context.Context, req resource.UpdateRequ
 	}
 
 	// Set list values to null if empty.
-	plan.Users, diags = stringListFromSDK(ctx, users)
+	plan.Users, diags = stringListFromSDK(ctx, permission.Users)
 	resp.Diagnostics.Append(diags...)
-	plan.Groups, diags = stringListFromSDK(ctx, groups)
+	plan.Groups, diags = stringListFromSDK(ctx, permission.Groups)
 	resp.Diagnostics.Append(diags...)
-	plan.Roles, diags = stringListFromSDK(ctx, roles)
+	plan.Roles, diags = stringListFromSDK(ctx, permission.Roles)
 	resp.Diagnostics.Append(diags...)
-	plan.Domains, diags = stringListFromSDK(ctx, domains)
+	plan.Domains, diags = stringListFromSDK(ctx, permission.Domains)
 	resp.Diagnostics.Append(diags...)
-	plan.Resources, diags = stringListFromSDK(ctx, resources)
+	plan.Resources, diags = stringListFromSDK(ctx, permission.Resources)
 	resp.Diagnostics.Append(diags...)
-	plan.Actions, diags = stringListFromSDK(ctx, actions)
+	plan.Actions, diags = stringListFromSDK(ctx, permission.Actions)
 	resp.Diagnostics.Append(diags...)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())

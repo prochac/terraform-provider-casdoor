@@ -9,6 +9,7 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -320,7 +321,7 @@ func (r *SyncerResource) Configure(_ context.Context, req resource.ConfigureRequ
 	r.client = client
 }
 
-func (r *SyncerResource) tableColumnsToSDK(ctx context.Context, plan SyncerResourceModel) ([]*casdoorsdk.TableColumn, error) {
+func syncerTableColumnsToSDK(ctx context.Context, plan SyncerResourceModel) ([]*casdoorsdk.TableColumn, error) {
 	if plan.TableColumns.IsNull() || plan.TableColumns.IsUnknown() {
 		return nil, nil
 	}
@@ -386,26 +387,16 @@ func (r *SyncerResource) tableColumnsFromSDK(ctx context.Context, columns []*cas
 	return result, nil
 }
 
-func (r *SyncerResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan SyncerResourceModel
+func syncerPlanToSDK(ctx context.Context, plan SyncerResourceModel, createdTime string) (*casdoorsdk.Syncer, diag.Diagnostics) {
+	var diags diag.Diagnostics
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	tableColumns, err := r.tableColumnsToSDK(ctx, plan)
+	tableColumns, err := syncerTableColumnsToSDK(ctx, plan)
 	if err != nil {
-		resp.Diagnostics.AddError("Error Converting Table Columns", err.Error())
-		return
+		diags.AddError("Error Converting Table Columns", err.Error())
+		return nil, diags
 	}
 
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	syncer := &casdoorsdk.Syncer{
+	return &casdoorsdk.Syncer{
 		Owner:            plan.Owner.ValueString(),
 		Name:             plan.Name.ValueString(),
 		CreatedTime:      createdTime,
@@ -431,6 +422,26 @@ func (r *SyncerResource) Create(ctx context.Context, req resource.CreateRequest,
 		SyncInterval:     int(plan.SyncInterval.ValueInt64()),
 		IsReadOnly:       plan.IsReadOnly.ValueBool(),
 		IsEnabled:        plan.IsEnabled.ValueBool(),
+	}, diags
+}
+
+func (r *SyncerResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan SyncerResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	syncer, diags := syncerPlanToSDK(ctx, plan, createdTime)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddSyncer(syncer)
@@ -536,38 +547,10 @@ func (r *SyncerResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	tableColumns, err := r.tableColumnsToSDK(ctx, plan)
-	if err != nil {
-		resp.Diagnostics.AddError("Error Converting Table Columns", err.Error())
+	syncer, diags := syncerPlanToSDK(ctx, plan, plan.CreatedTime.ValueString())
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	syncer := &casdoorsdk.Syncer{
-		Owner:            plan.Owner.ValueString(),
-		Name:             plan.Name.ValueString(),
-		CreatedTime:      plan.CreatedTime.ValueString(),
-		Organization:     plan.Organization.ValueString(),
-		Type:             plan.Type.ValueString(),
-		Host:             plan.Host.ValueString(),
-		Port:             int(plan.Port.ValueInt64()),
-		User:             plan.User.ValueString(),
-		Password:         plan.Password.ValueString(),
-		DatabaseType:     plan.DatabaseType.ValueString(),
-		SslMode:          plan.SslMode.ValueString(),
-		SshType:          plan.SshType.ValueString(),
-		SshHost:          plan.SshHost.ValueString(),
-		SshPort:          int(plan.SshPort.ValueInt64()),
-		SshUser:          plan.SshUser.ValueString(),
-		SshPassword:      plan.SshPassword.ValueString(),
-		Cert:             plan.Cert.ValueString(),
-		Database:         plan.Database.ValueString(),
-		Table:            plan.Table.ValueString(),
-		TableColumns:     tableColumns,
-		AffiliationTable: plan.AffiliationTable.ValueString(),
-		AvatarBaseUrl:    plan.AvatarBaseUrl.ValueString(),
-		SyncInterval:     int(plan.SyncInterval.ValueInt64()),
-		IsReadOnly:       plan.IsReadOnly.ValueBool(),
-		IsEnabled:        plan.IsEnabled.ValueBool(),
 	}
 
 	ok, err := r.client.UpdateSyncer(syncer)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -205,7 +206,7 @@ func (r *WebhookResource) Configure(_ context.Context, req resource.ConfigureReq
 	r.client = client
 }
 
-func (r *WebhookResource) headersToSDK(ctx context.Context, plan WebhookResourceModel) ([]*casdoorsdk.Header, error) {
+func webhookHeadersToSDK(ctx context.Context, plan WebhookResourceModel) ([]*casdoorsdk.Header, error) {
 	if plan.Headers.IsNull() || plan.Headers.IsUnknown() {
 		return nil, nil
 	}
@@ -250,36 +251,26 @@ func (r *WebhookResource) headersFromSDK(_ context.Context, headers []*casdoorsd
 	return result, nil
 }
 
-func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan WebhookResourceModel
+func webhookPlanToSDK(ctx context.Context, plan WebhookResourceModel, createdTime string) (*casdoorsdk.Webhook, diag.Diagnostics) {
+	var diags diag.Diagnostics
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	headers, err := r.headersToSDK(ctx, plan)
+	headers, err := webhookHeadersToSDK(ctx, plan)
 	if err != nil {
-		resp.Diagnostics.AddError("Error Converting Headers", err.Error())
-		return
+		diags.AddError("Error Converting Headers", err.Error())
+		return nil, diags
 	}
 
-	events, diags := stringListToSDK(ctx, plan.Events)
-	resp.Diagnostics.Append(diags...)
-	tokenFields, diags := stringListToSDK(ctx, plan.TokenFields)
-	resp.Diagnostics.Append(diags...)
-	objectFields, diags := stringListToSDK(ctx, plan.ObjectFields)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
+	events, d := stringListToSDK(ctx, plan.Events)
+	diags.Append(d...)
+	tokenFields, d := stringListToSDK(ctx, plan.TokenFields)
+	diags.Append(d...)
+	objectFields, d := stringListToSDK(ctx, plan.ObjectFields)
+	diags.Append(d...)
+	if diags.HasError() {
+		return nil, diags
 	}
 
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	webhook := &casdoorsdk.Webhook{
+	return &casdoorsdk.Webhook{
 		Owner:          plan.Owner.ValueString(),
 		Name:           plan.Name.ValueString(),
 		CreatedTime:    createdTime,
@@ -294,6 +285,26 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 		IsUserExtended: plan.IsUserExtended.ValueBool(),
 		SingleOrgOnly:  plan.SingleOrgOnly.ValueBool(),
 		IsEnabled:      plan.IsEnabled.ValueBool(),
+	}, diags
+}
+
+func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan WebhookResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	webhook, diags := webhookPlanToSDK(ctx, plan, createdTime)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddWebhook(webhook)
@@ -391,37 +402,10 @@ func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	headers, err := r.headersToSDK(ctx, plan)
-	if err != nil {
-		resp.Diagnostics.AddError("Error Converting Headers", err.Error())
-		return
-	}
-
-	events, diags := stringListToSDK(ctx, plan.Events)
-	resp.Diagnostics.Append(diags...)
-	tokenFields, diags := stringListToSDK(ctx, plan.TokenFields)
-	resp.Diagnostics.Append(diags...)
-	objectFields, diags := stringListToSDK(ctx, plan.ObjectFields)
+	webhook, diags := webhookPlanToSDK(ctx, plan, plan.CreatedTime.ValueString())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	webhook := &casdoorsdk.Webhook{
-		Owner:          plan.Owner.ValueString(),
-		Name:           plan.Name.ValueString(),
-		CreatedTime:    plan.CreatedTime.ValueString(),
-		Organization:   plan.Organization.ValueString(),
-		Url:            plan.Url.ValueString(),
-		Method:         plan.Method.ValueString(),
-		ContentType:    plan.ContentType.ValueString(),
-		Headers:        headers,
-		Events:         events,
-		TokenFields:    tokenFields,
-		ObjectFields:   objectFields,
-		IsUserExtended: plan.IsUserExtended.ValueBool(),
-		SingleOrgOnly:  plan.SingleOrgOnly.ValueBool(),
-		IsEnabled:      plan.IsEnabled.ValueBool(),
 	}
 
 	ok, err := r.client.UpdateWebhook(webhook)

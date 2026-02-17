@@ -141,32 +141,19 @@ func (r *RoleResource) Configure(_ context.Context, req resource.ConfigureReques
 	r.client = client
 }
 
-func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan RoleResourceModel
+func rolePlanToSDK(ctx context.Context, plan RoleResourceModel, createdTime string) (*casdoorsdk.Role, diag.Diagnostics) {
+	var diags diag.Diagnostics
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	users, d := stringListToSDK(ctx, plan.Users)
+	diags.Append(d...)
+	groups, d := stringListToSDK(ctx, plan.Groups)
+	diags.Append(d...)
+	roles, d := stringListToSDK(ctx, plan.Roles)
+	diags.Append(d...)
+	domains, d := stringListToSDK(ctx, plan.Domains)
+	diags.Append(d...)
 
-	users, diags := stringListToSDK(ctx, plan.Users)
-	resp.Diagnostics.Append(diags...)
-	groups, diags := stringListToSDK(ctx, plan.Groups)
-	resp.Diagnostics.Append(diags...)
-	roles, diags := stringListToSDK(ctx, plan.Roles)
-	resp.Diagnostics.Append(diags...)
-	domains, diags := stringListToSDK(ctx, plan.Domains)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	role := &casdoorsdk.Role{
+	return &casdoorsdk.Role{
 		Owner:       plan.Owner.ValueString(),
 		Name:        plan.Name.ValueString(),
 		CreatedTime: createdTime,
@@ -177,6 +164,26 @@ func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, r
 		Roles:       roles,
 		Domains:     domains,
 		IsEnabled:   plan.IsEnabled.ValueBool(),
+	}, diags
+}
+
+func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan RoleResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	role, diags := rolePlanToSDK(ctx, plan, createdTime)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddRole(role)
@@ -199,13 +206,13 @@ func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Set list values to null if empty.
-	plan.Users, diags = stringListFromSDK(ctx, users)
+	plan.Users, diags = stringListFromSDK(ctx, role.Users)
 	resp.Diagnostics.Append(diags...)
-	plan.Groups, diags = stringListFromSDK(ctx, groups)
+	plan.Groups, diags = stringListFromSDK(ctx, role.Groups)
 	resp.Diagnostics.Append(diags...)
-	plan.Roles, diags = stringListFromSDK(ctx, roles)
+	plan.Roles, diags = stringListFromSDK(ctx, role.Roles)
 	resp.Diagnostics.Append(diags...)
-	plan.Domains, diags = stringListFromSDK(ctx, domains)
+	plan.Domains, diags = stringListFromSDK(ctx, role.Domains)
 	resp.Diagnostics.Append(diags...)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
@@ -267,29 +274,10 @@ func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	users, diags := stringListToSDK(ctx, plan.Users)
-	resp.Diagnostics.Append(diags...)
-	groups, diags := stringListToSDK(ctx, plan.Groups)
-	resp.Diagnostics.Append(diags...)
-	roles, diags := stringListToSDK(ctx, plan.Roles)
-	resp.Diagnostics.Append(diags...)
-	domains, diags := stringListToSDK(ctx, plan.Domains)
+	role, diags := rolePlanToSDK(ctx, plan, plan.CreatedTime.ValueString())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	role := &casdoorsdk.Role{
-		Owner:       plan.Owner.ValueString(),
-		Name:        plan.Name.ValueString(),
-		CreatedTime: plan.CreatedTime.ValueString(),
-		DisplayName: plan.DisplayName.ValueString(),
-		Description: plan.Description.ValueString(),
-		Users:       users,
-		Groups:      groups,
-		Roles:       roles,
-		Domains:     domains,
-		IsEnabled:   plan.IsEnabled.ValueBool(),
 	}
 
 	ok, err := r.client.UpdateRole(role)
@@ -298,13 +286,13 @@ func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	// Set list values to null if empty.
-	plan.Users, diags = stringListFromSDK(ctx, users)
+	plan.Users, diags = stringListFromSDK(ctx, role.Users)
 	resp.Diagnostics.Append(diags...)
-	plan.Groups, diags = stringListFromSDK(ctx, groups)
+	plan.Groups, diags = stringListFromSDK(ctx, role.Groups)
 	resp.Diagnostics.Append(diags...)
-	plan.Roles, diags = stringListFromSDK(ctx, roles)
+	plan.Roles, diags = stringListFromSDK(ctx, role.Roles)
 	resp.Diagnostics.Append(diags...)
-	plan.Domains, diags = stringListFromSDK(ctx, domains)
+	plan.Domains, diags = stringListFromSDK(ctx, role.Domains)
 	resp.Diagnostics.Append(diags...)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())

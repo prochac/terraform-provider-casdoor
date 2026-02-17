@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -170,26 +171,13 @@ func (r *PricingResource) Configure(_ context.Context, req resource.ConfigureReq
 	r.client = client
 }
 
-func (r *PricingResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan PricingResourceModel
-
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
+func pricingPlanToSDK(ctx context.Context, plan PricingResourceModel, createdTime string) (*casdoorsdk.Pricing, diag.Diagnostics) {
 	plans, diags := stringListToSDK(ctx, plan.Plans)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
+	if diags.HasError() {
+		return nil, diags
 	}
 
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	pricing := &casdoorsdk.Pricing{
+	return &casdoorsdk.Pricing{
 		Owner:         plan.Owner.ValueString(),
 		Name:          plan.Name.ValueString(),
 		CreatedTime:   createdTime,
@@ -203,6 +191,26 @@ func (r *PricingResource) Create(ctx context.Context, req resource.CreateRequest
 		Approver:      plan.Approver.ValueString(),
 		ApproveTime:   plan.ApproveTime.ValueString(),
 		State:         plan.State.ValueString(),
+	}, diags
+}
+
+func (r *PricingResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan PricingResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	pricing, diags := pricingPlanToSDK(ctx, plan, createdTime)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddPricing(pricing)
@@ -286,26 +294,10 @@ func (r *PricingResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	plans, diags := stringListToSDK(ctx, plan.Plans)
+	pricing, diags := pricingPlanToSDK(ctx, plan, plan.CreatedTime.ValueString())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	pricing := &casdoorsdk.Pricing{
-		Owner:         plan.Owner.ValueString(),
-		Name:          plan.Name.ValueString(),
-		CreatedTime:   plan.CreatedTime.ValueString(),
-		DisplayName:   plan.DisplayName.ValueString(),
-		Description:   plan.Description.ValueString(),
-		Plans:         plans,
-		IsEnabled:     plan.IsEnabled.ValueBool(),
-		TrialDuration: int(plan.TrialDuration.ValueInt64()),
-		Application:   plan.Application.ValueString(),
-		Submitter:     plan.Submitter.ValueString(),
-		Approver:      plan.Approver.ValueString(),
-		ApproveTime:   plan.ApproveTime.ValueString(),
-		State:         plan.State.ValueString(),
 	}
 
 	ok, err := r.client.UpdatePricing(pricing)

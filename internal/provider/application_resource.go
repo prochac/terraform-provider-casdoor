@@ -1080,34 +1080,34 @@ func (r *ApplicationResource) Configure(_ context.Context, req resource.Configur
 	r.client = client
 }
 
-func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan ApplicationResourceModel
-
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+// applicationPlanToSDK converts an ApplicationResourceModel into a casdoorsdk.Application.
+// The createdTime, clientID, and clientSecret parameters allow callers to pass in values
+// that differ between Create (computed) and Update (from state).
+func applicationPlanToSDK(ctx context.Context, plan ApplicationResourceModel, createdTime, clientID, clientSecret string) (*casdoorsdk.Application, diag.Diagnostics) {
+	var diags diag.Diagnostics
 
 	// Convert list types to Go slices.
 	redirectURIs, d := stringListToSDK(ctx, plan.RedirectURIs)
-	resp.Diagnostics.Append(d...)
+	diags.Append(d...)
 	grantTypes, d := stringListToSDK(ctx, plan.GrantTypes)
-	resp.Diagnostics.Append(d...)
+	diags.Append(d...)
 	tokenFields, d := stringListToSDK(ctx, plan.TokenFields)
-	resp.Diagnostics.Append(d...)
+	diags.Append(d...)
 	tags, d := stringListToSDK(ctx, plan.Tags)
-	resp.Diagnostics.Append(d...)
-	if resp.Diagnostics.HasError() {
-		return
+	diags.Append(d...)
+	otherDomains, d := stringListToSDK(ctx, plan.OtherDomains)
+	diags.Append(d...)
+	if diags.HasError() {
+		return nil, diags
 	}
 
 	// Convert nested objects.
 	var themeData *casdoorsdk.ThemeData
 	if !plan.ThemeData.IsNull() && !plan.ThemeData.IsUnknown() {
 		var themeModel ThemeDataModel
-		resp.Diagnostics.Append(plan.ThemeData.As(ctx, &themeModel, basetypes.ObjectAsOptions{})...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.ThemeData.As(ctx, &themeModel, basetypes.ObjectAsOptions{})...)
+		if diags.HasError() {
+			return nil, diags
 		}
 		themeData = &casdoorsdk.ThemeData{
 			ThemeType:    themeModel.ThemeType.ValueString(),
@@ -1122,14 +1122,14 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	providers := make([]*casdoorsdk.ProviderItem, 0)
 	if !plan.Providers.IsNull() && !plan.Providers.IsUnknown() {
 		var providerModels []ProviderItemModel
-		resp.Diagnostics.Append(plan.Providers.ElementsAs(ctx, &providerModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.Providers.ElementsAs(ctx, &providerModels, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 		for _, p := range providerModels {
 			var countryCodes []string
 			if !p.CountryCodes.IsNull() {
-				resp.Diagnostics.Append(p.CountryCodes.ElementsAs(ctx, &countryCodes, false)...)
+				diags.Append(p.CountryCodes.ElementsAs(ctx, &countryCodes, false)...)
 			}
 			providers = append(providers, &casdoorsdk.ProviderItem{
 				Owner:        p.Owner.ValueString(),
@@ -1149,9 +1149,9 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	signinMethods := make([]*casdoorsdk.SigninMethod, 0)
 	if !plan.SigninMethods.IsNull() && !plan.SigninMethods.IsUnknown() {
 		var methodModels []SigninMethodModel
-		resp.Diagnostics.Append(plan.SigninMethods.ElementsAs(ctx, &methodModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.SigninMethods.ElementsAs(ctx, &methodModels, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 		for _, m := range methodModels {
 			signinMethods = append(signinMethods, &casdoorsdk.SigninMethod{
@@ -1166,14 +1166,14 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	signupItems := make([]*casdoorsdk.SignupItem, 0)
 	if !plan.SignupItems.IsNull() && !plan.SignupItems.IsUnknown() {
 		var itemModels []SignupItemModel
-		resp.Diagnostics.Append(plan.SignupItems.ElementsAs(ctx, &itemModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.SignupItems.ElementsAs(ctx, &itemModels, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 		for _, i := range itemModels {
 			var options []string
 			if !i.Options.IsNull() {
-				resp.Diagnostics.Append(i.Options.ElementsAs(ctx, &options, false)...)
+				diags.Append(i.Options.ElementsAs(ctx, &options, false)...)
 			}
 			signupItems = append(signupItems, &casdoorsdk.SignupItem{
 				Name:        i.Name.ValueString(),
@@ -1195,9 +1195,9 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	signinItems := make([]*casdoorsdk.SigninItem, 0)
 	if !plan.SigninItems.IsNull() && !plan.SigninItems.IsUnknown() {
 		var itemModels []SigninItemModel
-		resp.Diagnostics.Append(plan.SigninItems.ElementsAs(ctx, &itemModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.SigninItems.ElementsAs(ctx, &itemModels, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 		for _, i := range itemModels {
 			signinItems = append(signinItems, &casdoorsdk.SigninItem{
@@ -1216,9 +1216,9 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	samlAttributes := make([]*casdoorsdk.SamlItem, 0)
 	if !plan.SamlAttributes.IsNull() && !plan.SamlAttributes.IsUnknown() {
 		var samlModels []SamlItemModel
-		resp.Diagnostics.Append(plan.SamlAttributes.ElementsAs(ctx, &samlModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.SamlAttributes.ElementsAs(ctx, &samlModels, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 		for _, s := range samlModels {
 			samlAttributes = append(samlAttributes, &casdoorsdk.SamlItem{
@@ -1233,9 +1233,9 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	tokenAttributes := make([]*casdoorsdk.JwtItem, 0)
 	if !plan.TokenAttributes.IsNull() && !plan.TokenAttributes.IsUnknown() {
 		var jwtModels []JwtItemModel
-		resp.Diagnostics.Append(plan.TokenAttributes.ElementsAs(ctx, &jwtModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.TokenAttributes.ElementsAs(ctx, &jwtModels, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 		for _, j := range jwtModels {
 			tokenAttributes = append(tokenAttributes, &casdoorsdk.JwtItem{
@@ -1250,14 +1250,14 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	scopes := make([]*casdoorsdk.ScopeItem, 0)
 	if !plan.Scopes.IsNull() && !plan.Scopes.IsUnknown() {
 		var scopeModels []ScopeItemModel
-		resp.Diagnostics.Append(plan.Scopes.ElementsAs(ctx, &scopeModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.Scopes.ElementsAs(ctx, &scopeModels, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 		for _, s := range scopeModels {
 			tools := make([]string, 0)
 			if !s.Tools.IsNull() && !s.Tools.IsUnknown() {
-				resp.Diagnostics.Append(s.Tools.ElementsAs(ctx, &tools, false)...)
+				diags.Append(s.Tools.ElementsAs(ctx, &tools, false)...)
 			}
 			scopes = append(scopes, &casdoorsdk.ScopeItem{
 				Name:        s.Name.ValueString(),
@@ -1268,17 +1268,8 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		}
 	}
 
-	// Convert other domains
-	otherDomains, d := stringListToSDK(ctx, plan.OtherDomains)
-	resp.Diagnostics.Append(d...)
-
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
+	if diags.HasError() {
+		return nil, diags
 	}
 
 	app := &casdoorsdk.Application{
@@ -1312,6 +1303,8 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		EnableLinkWithEmail:          plan.EnableLinkWithEmail.ValueBool(),
 		DisableSignin:                plan.DisableSignin.ValueBool(),
 		IsShared:                     plan.IsShared.ValueBool(),
+		ClientId:                     clientID,
+		ClientSecret:                 clientSecret,
 		RedirectUris:                 redirectURIs,
 		TokenFormat:                  plan.TokenFormat.ValueString(),
 		TokenSigningMethod:           plan.TokenSigningMethod.ValueString(),
@@ -1361,6 +1354,28 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		SslCert:                      plan.SslCert.ValueString(),
 	}
 
+	return app, diags
+}
+
+func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan ApplicationResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	app, diags := applicationPlanToSDK(ctx, plan, createdTime, "", "")
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	ok, err := r.client.AddApplication(app)
 	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating application %q", plan.Name.ValueString())) {
 		return
@@ -1395,6 +1410,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	// For computed list/object fields that were unknown (not set in config),
 	// populate them from the API response. For fields that were set in config,
 	// keep the configured values.
+	var d diag.Diagnostics
 
 	// RedirectURIs
 	if plan.RedirectURIs.IsUnknown() {
@@ -1950,286 +1966,10 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 
-	// Convert list types to Go slices.
-	// Use empty slices (not nil) so JSON serializes as [] instead of null.
-	redirectURIs := make([]string, 0)
-	grantTypes := make([]string, 0)
-	tokenFields := make([]string, 0)
-	tags := make([]string, 0)
-
-	if !plan.RedirectURIs.IsNull() && !plan.RedirectURIs.IsUnknown() {
-		resp.Diagnostics.Append(plan.RedirectURIs.ElementsAs(ctx, &redirectURIs, false)...)
-	}
-	if !plan.GrantTypes.IsNull() && !plan.GrantTypes.IsUnknown() {
-		resp.Diagnostics.Append(plan.GrantTypes.ElementsAs(ctx, &grantTypes, false)...)
-	}
-	if !plan.TokenFields.IsNull() && !plan.TokenFields.IsUnknown() {
-		resp.Diagnostics.Append(plan.TokenFields.ElementsAs(ctx, &tokenFields, false)...)
-	}
-	if !plan.Tags.IsNull() && !plan.Tags.IsUnknown() {
-		resp.Diagnostics.Append(plan.Tags.ElementsAs(ctx, &tags, false)...)
-	}
+	app, diags := applicationPlanToSDK(ctx, plan, state.CreatedTime.ValueString(), state.ClientID.ValueString(), state.ClientSecret.ValueString())
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	// Convert nested objects.
-	var themeData *casdoorsdk.ThemeData
-	if !plan.ThemeData.IsNull() && !plan.ThemeData.IsUnknown() {
-		var themeModel ThemeDataModel
-		resp.Diagnostics.Append(plan.ThemeData.As(ctx, &themeModel, basetypes.ObjectAsOptions{})...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		themeData = &casdoorsdk.ThemeData{
-			ThemeType:    themeModel.ThemeType.ValueString(),
-			ColorPrimary: themeModel.ColorPrimary.ValueString(),
-			BorderRadius: int(themeModel.BorderRadius.ValueInt64()),
-			IsCompact:    themeModel.IsCompact.ValueBool(),
-			IsEnabled:    themeModel.IsEnabled.ValueBool(),
-		}
-	}
-
-	// Convert providers
-	providers := make([]*casdoorsdk.ProviderItem, 0)
-	if !plan.Providers.IsNull() && !plan.Providers.IsUnknown() {
-		var providerModels []ProviderItemModel
-		resp.Diagnostics.Append(plan.Providers.ElementsAs(ctx, &providerModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		for _, p := range providerModels {
-			var countryCodes []string
-			if !p.CountryCodes.IsNull() {
-				resp.Diagnostics.Append(p.CountryCodes.ElementsAs(ctx, &countryCodes, false)...)
-			}
-			providers = append(providers, &casdoorsdk.ProviderItem{
-				Owner:        p.Owner.ValueString(),
-				Name:         p.Name.ValueString(),
-				CanSignUp:    p.CanSignUp.ValueBool(),
-				CanSignIn:    p.CanSignIn.ValueBool(),
-				CanUnlink:    p.CanUnlink.ValueBool(),
-				Prompted:     p.Prompted.ValueBool(),
-				Rule:         p.Rule.ValueString(),
-				SignupGroup:  p.SignupGroup.ValueString(),
-				CountryCodes: countryCodes,
-			})
-		}
-	}
-
-	// Convert signin methods
-	signinMethods := make([]*casdoorsdk.SigninMethod, 0)
-	if !plan.SigninMethods.IsNull() && !plan.SigninMethods.IsUnknown() {
-		var methodModels []SigninMethodModel
-		resp.Diagnostics.Append(plan.SigninMethods.ElementsAs(ctx, &methodModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		for _, m := range methodModels {
-			signinMethods = append(signinMethods, &casdoorsdk.SigninMethod{
-				Name:        m.Name.ValueString(),
-				DisplayName: m.DisplayName.ValueString(),
-				Rule:        m.Rule.ValueString(),
-			})
-		}
-	}
-
-	// Convert signup items
-	signupItems := make([]*casdoorsdk.SignupItem, 0)
-	if !plan.SignupItems.IsNull() && !plan.SignupItems.IsUnknown() {
-		var itemModels []SignupItemModel
-		resp.Diagnostics.Append(plan.SignupItems.ElementsAs(ctx, &itemModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		for _, i := range itemModels {
-			var options []string
-			if !i.Options.IsNull() {
-				resp.Diagnostics.Append(i.Options.ElementsAs(ctx, &options, false)...)
-			}
-			signupItems = append(signupItems, &casdoorsdk.SignupItem{
-				Name:        i.Name.ValueString(),
-				Visible:     i.Visible.ValueBool(),
-				Required:    i.Required.ValueBool(),
-				Prompted:    i.Prompted.ValueBool(),
-				Type:        i.Type.ValueString(),
-				Rule:        i.Rule.ValueString(),
-				Label:       i.Label.ValueString(),
-				Placeholder: i.Placeholder.ValueString(),
-				Regex:       i.Regex.ValueString(),
-				CustomCss:   i.CustomCSS.ValueString(),
-				Options:     options,
-			})
-		}
-	}
-
-	// Convert signin items
-	signinItems := make([]*casdoorsdk.SigninItem, 0)
-	if !plan.SigninItems.IsNull() && !plan.SigninItems.IsUnknown() {
-		var itemModels []SigninItemModel
-		resp.Diagnostics.Append(plan.SigninItems.ElementsAs(ctx, &itemModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		for _, i := range itemModels {
-			signinItems = append(signinItems, &casdoorsdk.SigninItem{
-				Name:        i.Name.ValueString(),
-				Visible:     i.Visible.ValueBool(),
-				IsCustom:    i.IsCustom.ValueBool(),
-				Label:       i.Label.ValueString(),
-				Placeholder: i.Placeholder.ValueString(),
-				Rule:        i.Rule.ValueString(),
-				CustomCss:   i.CustomCSS.ValueString(),
-			})
-		}
-	}
-
-	// Convert SAML attributes
-	samlAttributes := make([]*casdoorsdk.SamlItem, 0)
-	if !plan.SamlAttributes.IsNull() && !plan.SamlAttributes.IsUnknown() {
-		var samlModels []SamlItemModel
-		resp.Diagnostics.Append(plan.SamlAttributes.ElementsAs(ctx, &samlModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		for _, s := range samlModels {
-			samlAttributes = append(samlAttributes, &casdoorsdk.SamlItem{
-				Name:       s.Name.ValueString(),
-				NameFormat: s.NameFormat.ValueString(),
-				Value:      s.Value.ValueString(),
-			})
-		}
-	}
-
-	// Convert token attributes
-	tokenAttributes := make([]*casdoorsdk.JwtItem, 0)
-	if !plan.TokenAttributes.IsNull() && !plan.TokenAttributes.IsUnknown() {
-		var jwtModels []JwtItemModel
-		resp.Diagnostics.Append(plan.TokenAttributes.ElementsAs(ctx, &jwtModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		for _, j := range jwtModels {
-			tokenAttributes = append(tokenAttributes, &casdoorsdk.JwtItem{
-				Name:  j.Name.ValueString(),
-				Value: j.Value.ValueString(),
-				Type:  j.Type.ValueString(),
-			})
-		}
-	}
-
-	// Convert scopes
-	scopes := make([]*casdoorsdk.ScopeItem, 0)
-	if !plan.Scopes.IsNull() && !plan.Scopes.IsUnknown() {
-		var scopeModels []ScopeItemModel
-		resp.Diagnostics.Append(plan.Scopes.ElementsAs(ctx, &scopeModels, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		for _, s := range scopeModels {
-			tools := make([]string, 0)
-			if !s.Tools.IsNull() && !s.Tools.IsUnknown() {
-				resp.Diagnostics.Append(s.Tools.ElementsAs(ctx, &tools, false)...)
-			}
-			scopes = append(scopes, &casdoorsdk.ScopeItem{
-				Name:        s.Name.ValueString(),
-				DisplayName: s.DisplayName.ValueString(),
-				Description: s.Description.ValueString(),
-				Tools:       tools,
-			})
-		}
-	}
-
-	// Convert other domains
-	otherDomains := make([]string, 0)
-	if !plan.OtherDomains.IsNull() && !plan.OtherDomains.IsUnknown() {
-		resp.Diagnostics.Append(plan.OtherDomains.ElementsAs(ctx, &otherDomains, false)...)
-	}
-
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	app := &casdoorsdk.Application{
-		Owner:                        plan.Owner.ValueString(),
-		Name:                         plan.Name.ValueString(),
-		CreatedTime:                  state.CreatedTime.ValueString(),
-		DisplayName:                  plan.DisplayName.ValueString(),
-		Category:                     plan.Category.ValueString(),
-		Type:                         plan.Type.ValueString(),
-		Title:                        plan.Title.ValueString(),
-		Favicon:                      plan.Favicon.ValueString(),
-		Logo:                         plan.Logo.ValueString(),
-		HomepageUrl:                  plan.HomepageURL.ValueString(),
-		Description:                  plan.Description.ValueString(),
-		Organization:                 plan.Organization.ValueString(),
-		Cert:                         plan.Cert.ValueString(),
-		DefaultGroup:                 plan.DefaultGroup.ValueString(),
-		EnablePassword:               plan.EnablePassword.ValueBool(),
-		EnableSignUp:                 plan.EnableSignUp.ValueBool(),
-		EnableSigninSession:          plan.EnableSigninSession.ValueBool(),
-		EnableAutoSignin:             plan.EnableAutoSignin.ValueBool(),
-		EnableCodeSignin:             plan.EnableCodeSignin.ValueBool(),
-		EnableExclusiveSignin:        plan.EnableExclusiveSignin.ValueBool(),
-		EnableSamlCompress:           plan.EnableSamlCompress.ValueBool(),
-		EnableSamlC14n10:             plan.EnableSamlC14n10.ValueBool(),
-		EnableSamlPostBinding:        plan.EnableSamlPostBinding.ValueBool(),
-		EnableSamlAssertionSignature: plan.EnableSamlAssertionSignature.ValueBool(),
-		DisableSamlAttributes:        plan.DisableSamlAttributes.ValueBool(),
-		UseEmailAsSamlNameId:         plan.UseEmailAsSamlNameId.ValueBool(),
-		EnableWebAuthn:               plan.EnableWebAuthn.ValueBool(),
-		EnableLinkWithEmail:          plan.EnableLinkWithEmail.ValueBool(),
-		DisableSignin:                plan.DisableSignin.ValueBool(),
-		IsShared:                     plan.IsShared.ValueBool(),
-		ClientId:                     state.ClientID.ValueString(),
-		ClientSecret:                 state.ClientSecret.ValueString(),
-		RedirectUris:                 redirectURIs,
-		TokenFormat:                  plan.TokenFormat.ValueString(),
-		TokenSigningMethod:           plan.TokenSigningMethod.ValueString(),
-		TokenFields:                  tokenFields,
-		TokenAttributes:              tokenAttributes,
-		ExpireInHours:                plan.ExpireInHours.ValueFloat64(),
-		RefreshExpireInHours:         plan.RefreshExpireInHours.ValueFloat64(),
-		CookieExpireInHours:          plan.CookieExpireInHours.ValueInt64(),
-		GrantTypes:                   grantTypes,
-		SamlReplyUrl:                 plan.SamlReplyUrl.ValueString(),
-		SamlHashAlgorithm:            plan.SamlHashAlgorithm.ValueString(),
-		SamlAttributes:               samlAttributes,
-		SignupUrl:                    plan.SignupUrl.ValueString(),
-		SigninUrl:                    plan.SigninUrl.ValueString(),
-		ForgetUrl:                    plan.ForgetUrl.ValueString(),
-		AffiliationUrl:               plan.AffiliationUrl.ValueString(),
-		HeaderHtml:                   plan.HeaderHtml.ValueString(),
-		FooterHtml:                   plan.FooterHtml.ValueString(),
-		SignupHtml:                   plan.SignupHtml.ValueString(),
-		SigninHtml:                   plan.SigninHtml.ValueString(),
-		FormCss:                      plan.FormCss.ValueString(),
-		FormCssMobile:                plan.FormCssMobile.ValueString(),
-		FormOffset:                   int(plan.FormOffset.ValueInt64()),
-		FormSideHtml:                 plan.FormSideHtml.ValueString(),
-		FormBackgroundUrl:            plan.FormBackgroundUrl.ValueString(),
-		FormBackgroundUrlMobile:      plan.FormBackgroundUrlMobile.ValueString(),
-		ThemeData:                    themeData,
-		IpRestriction:                plan.IpRestriction.ValueString(),
-		IpWhitelist:                  plan.IpWhitelist.ValueString(),
-		FailedSigninLimit:            int(plan.FailedSigninLimit.ValueInt64()),
-		FailedSigninFrozenTime:       int(plan.FailedSigninFrozenTime.ValueInt64()),
-		CodeResendTimeout:            int(plan.CodeResendTimeout.ValueInt64()),
-		OrgChoiceMode:                plan.OrgChoiceMode.ValueString(),
-		TermsOfUse:                   plan.TermsOfUse.ValueString(),
-		Tags:                         tags,
-		ForcedRedirectOrigin:         plan.ForcedRedirectOrigin.ValueString(),
-		Order:                        int(plan.Order.ValueInt64()),
-		Providers:                    providers,
-		SigninMethods:                signinMethods,
-		SignupItems:                  signupItems,
-		SigninItems:                  signinItems,
-		Scopes:                       scopes,
-		Domain:                       plan.Domain.ValueString(),
-		OtherDomains:                 otherDomains,
-		UpstreamHost:                 plan.UpstreamHost.ValueString(),
-		SslMode:                      plan.SslMode.ValueString(),
-		SslCert:                      plan.SslCert.ValueString(),
 	}
 
 	ok, err := r.client.UpdateApplication(app)
@@ -2244,40 +1984,40 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	plan.CertPublicKey = state.CertPublicKey
 
 	// Set list values to null if empty to match plan.
-	if len(redirectURIs) == 0 {
+	if len(app.RedirectUris) == 0 {
 		plan.RedirectURIs = types.ListNull(types.StringType)
 	}
-	if len(grantTypes) == 0 {
+	if len(app.GrantTypes) == 0 {
 		plan.GrantTypes = types.ListNull(types.StringType)
 	}
-	if len(tokenFields) == 0 {
+	if len(app.TokenFields) == 0 {
 		plan.TokenFields = types.ListNull(types.StringType)
 	}
-	if len(tags) == 0 {
+	if len(app.Tags) == 0 {
 		plan.Tags = types.ListNull(types.StringType)
 	}
-	if len(samlAttributes) == 0 {
+	if len(app.SamlAttributes) == 0 {
 		plan.SamlAttributes = types.ListNull(types.ObjectType{AttrTypes: SamlItemAttrTypes()})
 	}
-	if len(tokenAttributes) == 0 {
+	if len(app.TokenAttributes) == 0 {
 		plan.TokenAttributes = types.ListNull(types.ObjectType{AttrTypes: JwtItemAttrTypes()})
 	}
-	if len(providers) == 0 {
+	if len(app.Providers) == 0 {
 		plan.Providers = types.ListNull(types.ObjectType{AttrTypes: ProviderItemAttrTypes()})
 	}
-	if len(signinMethods) == 0 {
+	if len(app.SigninMethods) == 0 {
 		plan.SigninMethods = types.ListNull(types.ObjectType{AttrTypes: SigninMethodAttrTypes()})
 	}
-	if len(signupItems) == 0 {
+	if len(app.SignupItems) == 0 {
 		plan.SignupItems = types.ListNull(types.ObjectType{AttrTypes: SignupItemAttrTypes()})
 	}
-	if len(signinItems) == 0 {
+	if len(app.SigninItems) == 0 {
 		plan.SigninItems = types.ListNull(types.ObjectType{AttrTypes: SigninItemAttrTypes()})
 	}
-	if len(scopes) == 0 {
+	if len(app.Scopes) == 0 {
 		plan.Scopes = types.ListNull(types.ObjectType{AttrTypes: ScopeItemAttrTypes()})
 	}
-	if len(otherDomains) == 0 {
+	if len(app.OtherDomains) == 0 {
 		plan.OtherDomains = types.ListNull(types.StringType)
 	}
 

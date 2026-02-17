@@ -164,6 +164,24 @@ func (r *CertResource) Configure(_ context.Context, req resource.ConfigureReques
 	r.client = client
 }
 
+func certPlanToSDK(plan CertResourceModel, createdTime string) *casdoorsdk.Cert {
+	return &casdoorsdk.Cert{
+		Owner:                  plan.Owner.ValueString(),
+		Name:                   plan.Name.ValueString(),
+		CreatedTime:            createdTime,
+		DisplayName:            plan.DisplayName.ValueString(),
+		Scope:                  plan.Scope.ValueString(),
+		Type:                   plan.Type.ValueString(),
+		CryptoAlgorithm:        plan.CryptoAlgorithm.ValueString(),
+		BitSize:                int(plan.BitSize.ValueInt64()),
+		ExpireInYears:          int(plan.ExpireInYears.ValueInt64()),
+		Certificate:            plan.Certificate.ValueString(),
+		PrivateKey:             plan.PrivateKey.ValueString(),
+		AuthorityPublicKey:     plan.AuthorityPublicKey.ValueString(),
+		AuthorityRootPublicKey: plan.AuthorityRootPublicKey.ValueString(),
+	}
+}
+
 func (r *CertResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan CertResourceModel
 
@@ -193,21 +211,7 @@ func (r *CertResource) Create(ctx context.Context, req resource.CreateRequest, r
 		createdTime = time.Now().UTC().Format(time.RFC3339)
 	}
 
-	cert := &casdoorsdk.Cert{
-		Owner:                  plan.Owner.ValueString(),
-		Name:                   plan.Name.ValueString(),
-		CreatedTime:            createdTime,
-		DisplayName:            plan.DisplayName.ValueString(),
-		Scope:                  plan.Scope.ValueString(),
-		Type:                   plan.Type.ValueString(),
-		CryptoAlgorithm:        plan.CryptoAlgorithm.ValueString(),
-		BitSize:                int(plan.BitSize.ValueInt64()),
-		ExpireInYears:          int(plan.ExpireInYears.ValueInt64()),
-		Certificate:            plan.Certificate.ValueString(),
-		PrivateKey:             plan.PrivateKey.ValueString(),
-		AuthorityPublicKey:     plan.AuthorityPublicKey.ValueString(),
-		AuthorityRootPublicKey: plan.AuthorityRootPublicKey.ValueString(),
-	}
+	cert := certPlanToSDK(plan, createdTime)
 
 	ok, err := r.client.AddCert(cert)
 	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating certificate %q", plan.Name.ValueString())) {
@@ -293,21 +297,7 @@ func (r *CertResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	cert := &casdoorsdk.Cert{
-		Owner:                  plan.Owner.ValueString(),
-		Name:                   plan.Name.ValueString(),
-		CreatedTime:            plan.CreatedTime.ValueString(),
-		DisplayName:            plan.DisplayName.ValueString(),
-		Scope:                  plan.Scope.ValueString(),
-		Type:                   plan.Type.ValueString(),
-		CryptoAlgorithm:        plan.CryptoAlgorithm.ValueString(),
-		BitSize:                int(plan.BitSize.ValueInt64()),
-		ExpireInYears:          int(plan.ExpireInYears.ValueInt64()),
-		Certificate:            plan.Certificate.ValueString(),
-		PrivateKey:             plan.PrivateKey.ValueString(),
-		AuthorityPublicKey:     plan.AuthorityPublicKey.ValueString(),
-		AuthorityRootPublicKey: plan.AuthorityRootPublicKey.ValueString(),
-	}
+	cert := certPlanToSDK(plan, plan.CreatedTime.ValueString())
 
 	ok, err := r.client.UpdateCert(cert)
 	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating certificate %q", plan.Name.ValueString())) {

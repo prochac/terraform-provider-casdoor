@@ -202,20 +202,8 @@ func (r *TokenResource) Configure(_ context.Context, req resource.ConfigureReque
 	r.client = client
 }
 
-func (r *TokenResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan TokenResourceModel
-
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	token := &casdoorsdk.Token{
+func tokenPlanToSDK(plan TokenResourceModel, createdTime string) *casdoorsdk.Token {
+	return &casdoorsdk.Token{
 		Owner:         plan.Owner.ValueString(),
 		Name:          plan.Name.ValueString(),
 		CreatedTime:   createdTime,
@@ -233,6 +221,22 @@ func (r *TokenResource) Create(ctx context.Context, req resource.CreateRequest, 
 		CodeExpireIn:  plan.CodeExpireIn.ValueInt64(),
 		Resource:      plan.Resource.ValueString(),
 	}
+}
+
+func (r *TokenResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan TokenResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	token := tokenPlanToSDK(plan, createdTime)
 
 	ok, err := r.client.AddToken(token)
 	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating token %q", plan.Name.ValueString())) {
@@ -314,24 +318,7 @@ func (r *TokenResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	token := &casdoorsdk.Token{
-		Owner:         plan.Owner.ValueString(),
-		Name:          plan.Name.ValueString(),
-		CreatedTime:   plan.CreatedTime.ValueString(),
-		Application:   plan.Application.ValueString(),
-		Organization:  plan.Organization.ValueString(),
-		User:          plan.User.ValueString(),
-		Code:          plan.Code.ValueString(),
-		AccessToken:   plan.AccessToken.ValueString(),
-		RefreshToken:  plan.RefreshToken.ValueString(),
-		ExpiresIn:     int(plan.ExpiresIn.ValueInt64()),
-		Scope:         plan.Scope.ValueString(),
-		TokenType:     plan.TokenType.ValueString(),
-		CodeChallenge: plan.CodeChallenge.ValueString(),
-		CodeIsUsed:    plan.CodeIsUsed.ValueBool(),
-		CodeExpireIn:  plan.CodeExpireIn.ValueInt64(),
-		Resource:      plan.Resource.ValueString(),
-	}
+	token := tokenPlanToSDK(plan, plan.CreatedTime.ValueString())
 
 	ok, err := r.client.UpdateToken(token)
 	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating token %q", plan.Name.ValueString())) {

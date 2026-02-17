@@ -164,20 +164,8 @@ func (r *ModelResource) Configure(_ context.Context, req resource.ConfigureReque
 	r.client = client
 }
 
-func (r *ModelResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan ModelResourceModel
-
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	model := &casdoorsdk.Model{
+func modelPlanToSDK(plan ModelResourceModel, createdTime string) *casdoorsdk.Model {
+	return &casdoorsdk.Model{
 		Owner:        plan.Owner.ValueString(),
 		Name:         plan.Name.ValueString(),
 		CreatedTime:  createdTime,
@@ -191,6 +179,22 @@ func (r *ModelResource) Create(ctx context.Context, req resource.CreateRequest, 
 		IsTopModel:   plan.IsTopModel.ValueBool(),
 		IsEnabled:    plan.IsEnabled.ValueBool(),
 	}
+}
+
+func (r *ModelResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan ModelResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	model := modelPlanToSDK(plan, createdTime)
 
 	ok, err := r.client.AddModel(model)
 	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating model %q", plan.Name.ValueString())) {
@@ -271,20 +275,7 @@ func (r *ModelResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	model := &casdoorsdk.Model{
-		Owner:        plan.Owner.ValueString(),
-		Name:         plan.Name.ValueString(),
-		CreatedTime:  plan.CreatedTime.ValueString(),
-		Description:  plan.Description.ValueString(),
-		DisplayName:  plan.DisplayName.ValueString(),
-		ModelText:    plan.ModelText.ValueString(),
-		Manager:      plan.Manager.ValueString(),
-		ContactEmail: plan.ContactEmail.ValueString(),
-		Type:         plan.Type.ValueString(),
-		ParentId:     plan.ParentId.ValueString(),
-		IsTopModel:   plan.IsTopModel.ValueBool(),
-		IsEnabled:    plan.IsEnabled.ValueBool(),
-	}
+	model := modelPlanToSDK(plan, plan.CreatedTime.ValueString())
 
 	_, err := r.client.UpdateModel(model)
 	if err != nil {

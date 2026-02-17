@@ -9,6 +9,7 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -385,38 +386,28 @@ func (r *IdpResource) Configure(_ context.Context, req resource.ConfigureRequest
 	r.client = client
 }
 
-func (r *IdpResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan IdpResourceModel
-
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+func idpPlanToSDK(ctx context.Context, plan IdpResourceModel, createdTime string) (*casdoorsdk.Provider, diag.Diagnostics) {
+	var diags diag.Diagnostics
 
 	var userMapping map[string]string
 	if !plan.UserMapping.IsNull() {
 		userMapping = make(map[string]string)
-		resp.Diagnostics.Append(plan.UserMapping.ElementsAs(ctx, &userMapping, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.UserMapping.ElementsAs(ctx, &userMapping, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 	}
 
 	var httpHeaders map[string]string
 	if !plan.HttpHeaders.IsNull() {
 		httpHeaders = make(map[string]string)
-		resp.Diagnostics.Append(plan.HttpHeaders.ElementsAs(ctx, &httpHeaders, false)...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(plan.HttpHeaders.ElementsAs(ctx, &httpHeaders, false)...)
+		if diags.HasError() {
+			return nil, diags
 		}
 	}
 
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	provider := &casdoorsdk.Provider{
+	return &casdoorsdk.Provider{
 		Owner:                  plan.Owner.ValueString(),
 		Name:                   plan.Name.ValueString(),
 		CreatedTime:            createdTime,
@@ -461,6 +452,26 @@ func (r *IdpResource) Create(ctx context.Context, req resource.CreateRequest, re
 		EnableProxy:            plan.EnableProxy.ValueBool(),
 		EnablePkce:             plan.EnablePkce.ValueBool(),
 		SslMode:                plan.SslMode.ValueString(),
+	}, diags
+}
+
+func (r *IdpResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan IdpResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	createdTime := plan.CreatedTime.ValueString()
+	if createdTime == "" {
+		createdTime = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	provider, diags := idpPlanToSDK(ctx, plan, createdTime)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	ok, err := r.client.AddProvider(provider)
