@@ -94,8 +94,20 @@ resource "casdoor_model" "abac" {
 
 ### Optional
 
+- `contact_email` (String) The contact email for this model.
+- `description` (String) A description of the model.
 - `display_name` (String) The display name of the model.
-- `is_enabled` (Boolean) Whether the model is enabled.
+- `is_enabled` (Boolean) Whether this model is enabled.
+- `is_top_model` (Boolean) Whether this is a top-level model.
+- `manager` (String) The manager of this model.
+- `parent_id` (String) The parent model ID.
+- `type` (String) The type of the model.
+
+### Read-Only
+
+- `created_time` (String) The time when the model was created.
+- `id` (String) The ID of the model in the format 'owner/name'.
+- `updated_time` (String) The time when the model was last updated.
 
 ## Import
 

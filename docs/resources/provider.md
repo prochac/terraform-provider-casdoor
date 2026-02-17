@@ -288,9 +288,13 @@ resource "casdoor_provider" "notification_slack" {
 - `disable_ssl` (Boolean) Whether to disable SSL.
 - `display_name` (String) The display name of the provider.
 - `domain` (String) Domain for the provider.
+- `email_regex` (String) Regex pattern for validating email addresses from this provider.
+- `enable_pkce` (Boolean) Whether to enable PKCE for this provider.
+- `enable_proxy` (Boolean) Whether to enable proxy for this provider.
 - `enable_sign_authn_request` (Boolean) Whether to sign SAML authentication requests.
 - `endpoint` (String) Endpoint for storage/cloud providers.
 - `host` (String) Host for email/SMS providers.
+- `http_headers` (Map of String) HTTP headers to include in requests to the provider.
 - `idp` (String) Identity provider identifier.
 - `intranet_endpoint` (String) Intranet endpoint for storage providers.
 - `issuer_url` (String) SAML/OIDC issuer URL.
@@ -303,10 +307,16 @@ resource "casdoor_provider" "notification_slack" {
 - `region_id` (String) Region ID for cloud providers.
 - `scopes` (String) OAuth scopes (comma-separated).
 - `sign_name` (String) Sign name for SMS providers.
+- `ssl_mode` (String) The SSL mode for database connections (e.g., 'disable', 'require', 'verify-full').
 - `sub_type` (String) The sub-type of the provider.
 - `template_code` (String) Template code for SMS providers.
 - `title` (String) Title for email templates.
 - `user_mapping` (Map of String) Mapping of provider user attributes to Casdoor user fields.
+
+### Read-Only
+
+- `created_time` (String) The time when the provider was created.
+- `id` (String) The ID of the identity provider in the format 'owner/name'.
 
 ## Import
 

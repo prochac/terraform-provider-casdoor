@@ -74,7 +74,6 @@ resource "casdoor_ldap" "full" {
 - `host` (String) The LDAP server hostname or IP address.
 - `id` (String) The unique identifier of the LDAP configuration.
 - `owner` (String) The organization that owns this LDAP configuration.
-- `password` (String, Sensitive) The password for the bind DN.
 - `port` (Number) The LDAP server port (typically 389 for LDAP, 636 for LDAPS).
 - `server_name` (String) A friendly name for the LDAP server.
 - `username` (String) The bind DN (Distinguished Name) for authenticating to the LDAP server.
@@ -88,6 +87,7 @@ resource "casdoor_ldap" "full" {
 - `enable_ssl` (Boolean) Whether to use SSL/TLS for the LDAP connection.
 - `filter` (String) The LDAP filter for searching users (e.g., '(objectClass=posixAccount)').
 - `filter_fields` (List of String) List of LDAP attributes to use as filter fields.
+- `password` (String, Sensitive) The password for the bind DN.
 - `password_type` (String) The password hashing algorithm used by LDAP (e.g., 'plain', 'md5', 'sha256').
 
 ### Read-Only

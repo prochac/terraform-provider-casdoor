@@ -65,11 +65,11 @@ resource "casdoor_adapter" "postgres" {
 - `database` (String) The database name.
 - `database_type` (String) The database type (e.g., 'mysql', 'postgres', 'sqlite3').
 - `host` (String) The database host address.
-- `is_enabled` (Boolean) Whether the adapter is enabled.
+- `is_enabled` (Boolean) Whether this adapter is enabled.
 - `password` (String, Sensitive) The database password.
 - `port` (Number) The database port number.
 - `table` (String) The table name for storing policies.
-- `table_name_prefix` (String) The prefix for table names.
+- `table_name_prefix` (String) The table name prefix for policy storage.
 - `type` (String) The type of the adapter (e.g., 'Database').
 - `use_same_db` (Boolean) Whether to use the same database as Casdoor.
 - `user` (String) The database username.
@@ -77,6 +77,7 @@ resource "casdoor_adapter" "postgres" {
 ### Read-Only
 
 - `created_time` (String) The time when the adapter was created.
+- `id` (String) The ID of the adapter in the format 'owner/name'.
 
 ## Import
 

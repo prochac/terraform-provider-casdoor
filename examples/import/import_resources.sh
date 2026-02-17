@@ -1,6 +1,6 @@
 #!/bin/bash
 
-import_list="resources_for_import.txt"
+import_list=${IMPORT_LIST:-"resources_for_import.txt"}
 tmp_file="tmp-built-in.tf"
 builtin_file="built-in.tf"
 
@@ -62,17 +62,33 @@ echo "Using: $TF_BIN" >&2
 # truncate the file
 >${builtin_file}
 
-while read -r res_type res_name id_field id_value; do
+while read -r res_type res_name fields; do
   [[ -z "${res_type}" || "${res_type}" == \#* ]] && continue
+
+  # Parse key-value pairs from remaining fields
+  skeleton=""
+  import_id=""
+  read -ra tokens <<<"${fields}"
+  for ((i = 0; i < ${#tokens[@]}; i += 2)); do
+    key="${tokens[i]}"
+    val="${tokens[i + 1]}"
+    skeleton+="  ${key} = \"${val}\""$'\n'
+
+    # Build import ID: owner/name for most resources, bare id for LDAP
+    case "${key}" in
+    owner) import_id="${val}/${import_id}" ;;
+    name) import_id="${import_id}${val}" ;;
+    id) import_id="${val}" ;;
+    esac
+  done
 
   # Create temporary skeleton
   cat >${tmp_file} <<EOF
 resource "${res_type}" "${res_name}" {
-  $id_field = "${id_value}"
-}
+${skeleton}}
 EOF
 
-  ${TF_BIN} import "${res_type}.${res_name}" "${id_value}"
+  ${TF_BIN} import "${res_type}.${res_name}" "${import_id}"
 
   ${TF_BIN} state show -show-sensitive "${res_type}.${res_name}" >>${builtin_file}
   echo >>${builtin_file}
@@ -85,15 +101,37 @@ done <${import_list}
 # format
 $TF_BIN fmt "${builtin_file}"
 
-# remove read-only fields
+# remove read-only (Computed-only) fields
 ro_attrs=(
+  # common
   "created_time"
+  "updated_time"
+  # application
   "client_id"
   "client_secret"
+  # user
+  "is_default_avatar"
+  "is_online"
+  "hash"
+  "pre_hash"
+  "created_ip"
+  "last_signin_time"
+  "last_signin_ip"
+  "last_change_password_time"
+  "last_signin_wrong_time"
+  "signin_wrong_times"
+  # ldap
+  "last_sync"
 )
 for ro_attr in "${ro_attrs[@]}"; do
-  ${SED_CMD} -i'' -e "/$ro_attr/d" ${builtin_file}
+  ${SED_CMD} -i'' -e "/^[[:space:]]*${ro_attr}[[:space:]]*=/d" ${builtin_file}
 done
+
+# Remove computed composite id (owner/name) but keep LDAP's bare id
+${SED_CMD} -i'' -e '/^[[:space:]]*id[[:space:]]*=.*\//d' ${builtin_file}
+
+# Strip trailing whitespace (fixes indented blank lines inside heredocs)
+${SED_CMD} -i'' -e 's/[[:space:]]*$//' ${builtin_file}
 
 # format after cleanup
 $TF_BIN fmt "${builtin_file}"

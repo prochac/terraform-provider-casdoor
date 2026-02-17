@@ -216,25 +216,38 @@ func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest
 		}
 	}
 
+	rechargeOptions := make([]float64, 0)
+	if !plan.RechargeOptions.IsNull() && !plan.RechargeOptions.IsUnknown() {
+		resp.Diagnostics.Append(plan.RechargeOptions.ElementsAs(ctx, &rechargeOptions, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
 	createdTime := plan.CreatedTime.ValueString()
 	if createdTime == "" {
 		createdTime = time.Now().UTC().Format(time.RFC3339)
 	}
 
 	product := &casdoorsdk.Product{
-		Owner:       plan.Owner.ValueString(),
-		Name:        plan.Name.ValueString(),
-		CreatedTime: createdTime,
-		DisplayName: plan.DisplayName.ValueString(),
-		Image:       plan.Image.ValueString(),
-		Detail:      plan.Detail.ValueString(),
-		Description: plan.Description.ValueString(),
-		Tag:         plan.Tag.ValueString(),
-		Currency:    plan.Currency.ValueString(),
-		Price:       plan.Price.ValueFloat64(),
-		Quantity:    int(plan.Quantity.ValueInt64()),
-		Providers:   providers,
-		State:       plan.State.ValueString(),
+		Owner:                 plan.Owner.ValueString(),
+		Name:                  plan.Name.ValueString(),
+		CreatedTime:           createdTime,
+		DisplayName:           plan.DisplayName.ValueString(),
+		Image:                 plan.Image.ValueString(),
+		Detail:                plan.Detail.ValueString(),
+		Description:           plan.Description.ValueString(),
+		Tag:                   plan.Tag.ValueString(),
+		Currency:              plan.Currency.ValueString(),
+		Price:                 plan.Price.ValueFloat64(),
+		Quantity:              int(plan.Quantity.ValueInt64()),
+		Sold:                  int(plan.Sold.ValueInt64()),
+		IsRecharge:            plan.IsRecharge.ValueBool(),
+		RechargeOptions:       rechargeOptions,
+		DisableCustomRecharge: plan.DisableCustomRecharge.ValueBool(),
+		SuccessUrl:            plan.SuccessUrl.ValueString(),
+		Providers:             providers,
+		State:                 plan.State.ValueString(),
 	}
 
 	success, err := r.client.AddProduct(product)
@@ -341,20 +354,33 @@ func (r *ProductResource) Update(ctx context.Context, req resource.UpdateRequest
 		}
 	}
 
+	rechargeOptions := make([]float64, 0)
+	if !plan.RechargeOptions.IsNull() && !plan.RechargeOptions.IsUnknown() {
+		resp.Diagnostics.Append(plan.RechargeOptions.ElementsAs(ctx, &rechargeOptions, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
 	product := &casdoorsdk.Product{
-		Owner:       plan.Owner.ValueString(),
-		Name:        plan.Name.ValueString(),
-		CreatedTime: plan.CreatedTime.ValueString(),
-		DisplayName: plan.DisplayName.ValueString(),
-		Image:       plan.Image.ValueString(),
-		Detail:      plan.Detail.ValueString(),
-		Description: plan.Description.ValueString(),
-		Tag:         plan.Tag.ValueString(),
-		Currency:    plan.Currency.ValueString(),
-		Price:       plan.Price.ValueFloat64(),
-		Quantity:    int(plan.Quantity.ValueInt64()),
-		Providers:   providers,
-		State:       plan.State.ValueString(),
+		Owner:                 plan.Owner.ValueString(),
+		Name:                  plan.Name.ValueString(),
+		CreatedTime:           plan.CreatedTime.ValueString(),
+		DisplayName:           plan.DisplayName.ValueString(),
+		Image:                 plan.Image.ValueString(),
+		Detail:                plan.Detail.ValueString(),
+		Description:           plan.Description.ValueString(),
+		Tag:                   plan.Tag.ValueString(),
+		Currency:              plan.Currency.ValueString(),
+		Price:                 plan.Price.ValueFloat64(),
+		Quantity:              int(plan.Quantity.ValueInt64()),
+		Sold:                  int(plan.Sold.ValueInt64()),
+		IsRecharge:            plan.IsRecharge.ValueBool(),
+		RechargeOptions:       rechargeOptions,
+		DisableCustomRecharge: plan.DisableCustomRecharge.ValueBool(),
+		SuccessUrl:            plan.SuccessUrl.ValueString(),
+		Providers:             providers,
+		State:                 plan.State.ValueString(),
 	}
 
 	success, err := r.client.UpdateProduct(product)

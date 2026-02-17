@@ -75,6 +75,7 @@ type IdpResourceModel struct {
 	EmailRegex             types.String `tfsdk:"email_regex"`
 	EnableProxy            types.Bool   `tfsdk:"enable_proxy"`
 	EnablePkce             types.Bool   `tfsdk:"enable_pkce"`
+	SslMode                types.String `tfsdk:"ssl_mode"`
 }
 
 func NewIdpResource() resource.Resource {
@@ -357,6 +358,12 @@ func (r *IdpResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
 			},
+			"ssl_mode": schema.StringAttribute{
+				Description: "The SSL mode for database connections (e.g., 'disable', 'require', 'verify-full').",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
 		},
 	}
 }
@@ -449,6 +456,11 @@ func (r *IdpResource) Create(ctx context.Context, req resource.CreateRequest, re
 		IssuerUrl:              plan.IssuerURL.ValueString(),
 		EnableSignAuthnRequest: plan.EnableSignAuthnRequest.ValueBool(),
 		ProviderUrl:            plan.ProviderURL.ValueString(),
+		HttpHeaders:            httpHeaders,
+		EmailRegex:             plan.EmailRegex.ValueString(),
+		EnableProxy:            plan.EnableProxy.ValueBool(),
+		EnablePkce:             plan.EnablePkce.ValueBool(),
+		SslMode:                plan.SslMode.ValueString(),
 	}
 
 	success, err := r.client.AddProvider(provider)
@@ -556,6 +568,15 @@ func (r *IdpResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	state.EmailRegex = types.StringValue(provider.EmailRegex)
 	state.EnableProxy = types.BoolValue(provider.EnableProxy)
 	state.EnablePkce = types.BoolValue(provider.EnablePkce)
+	state.SslMode = types.StringValue(provider.SslMode)
+
+	if len(provider.HttpHeaders) > 0 {
+		httpHeaders, diags := types.MapValueFrom(ctx, types.StringType, provider.HttpHeaders)
+		resp.Diagnostics.Append(diags...)
+		state.HttpHeaders = httpHeaders
+	} else {
+		state.HttpHeaders = types.MapValueMust(types.StringType, map[string]attr.Value{})
+	}
 
 	if len(provider.UserMapping) > 0 {
 		userMapping, diags := types.MapValueFrom(ctx, types.StringType, provider.UserMapping)
@@ -584,6 +605,15 @@ func (r *IdpResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	if !plan.UserMapping.IsNull() {
 		userMapping = make(map[string]string)
 		resp.Diagnostics.Append(plan.UserMapping.ElementsAs(ctx, &userMapping, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	var httpHeaders map[string]string
+	if !plan.HttpHeaders.IsNull() {
+		httpHeaders = make(map[string]string)
+		resp.Diagnostics.Append(plan.HttpHeaders.ElementsAs(ctx, &httpHeaders, false)...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
@@ -628,6 +658,11 @@ func (r *IdpResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		IssuerUrl:              plan.IssuerURL.ValueString(),
 		EnableSignAuthnRequest: plan.EnableSignAuthnRequest.ValueBool(),
 		ProviderUrl:            plan.ProviderURL.ValueString(),
+		HttpHeaders:            httpHeaders,
+		EmailRegex:             plan.EmailRegex.ValueString(),
+		EnableProxy:            plan.EnableProxy.ValueBool(),
+		EnablePkce:             plan.EnablePkce.ValueBool(),
+		SslMode:                plan.SslMode.ValueString(),
 	}
 
 	success, err := r.client.UpdateProvider(provider)

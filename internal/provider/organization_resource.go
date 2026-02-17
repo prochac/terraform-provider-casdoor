@@ -130,6 +130,8 @@ type OrganizationResourceModel struct {
 	UserBalance            types.Float64 `tfsdk:"user_balance"`
 	BalanceCredit          types.Float64 `tfsdk:"balance_credit"`
 	BalanceCurrency        types.String  `tfsdk:"balance_currency"`
+	AccountMenu            types.String  `tfsdk:"account_menu"`
+	DcrPolicy              types.String  `tfsdk:"dcr_policy"`
 }
 
 func NewOrganizationResource() resource.Resource {
@@ -458,7 +460,21 @@ func (r *OrganizationResource) Schema(_ context.Context, _ resource.SchemaReques
 				Description: "The balance currency.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString("USD"),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"account_menu": schema.StringAttribute{
+				Description: "The account menu configuration.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"dcr_policy": schema.StringAttribute{
+				Description: "The dynamic client registration policy.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
 			},
 		},
 	}
@@ -490,7 +506,15 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	// Convert list types to Go slices.
-	var passwordOptions, countryCodes, userTypes, tags, languages, navItems, userNavItems, widgetItems []string
+	// Use empty slices (not nil) so JSON serializes as [] instead of null.
+	passwordOptions := make([]string, 0)
+	countryCodes := make([]string, 0)
+	userTypes := make([]string, 0)
+	tags := make([]string, 0)
+	languages := make([]string, 0)
+	navItems := make([]string, 0)
+	userNavItems := make([]string, 0)
+	widgetItems := make([]string, 0)
 
 	if !plan.PasswordOptions.IsNull() {
 		resp.Diagnostics.Append(plan.PasswordOptions.ElementsAs(ctx, &passwordOptions, false)...)
@@ -537,7 +561,7 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 		}
 	}
 
-	var mfaItems []*casdoorsdk.MfaItem
+	mfaItems := make([]*casdoorsdk.MfaItem, 0)
 	if !plan.MfaItems.IsNull() {
 		var mfaModels []MfaItemModel
 		resp.Diagnostics.Append(plan.MfaItems.ElementsAs(ctx, &mfaModels, false)...)
@@ -552,7 +576,7 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 		}
 	}
 
-	var accountItems []*casdoorsdk.AccountItem
+	accountItems := make([]*casdoorsdk.AccountItem, 0)
 	if !plan.AccountItems.IsNull() {
 		var accountModels []AccountItemModel
 		resp.Diagnostics.Append(plan.AccountItems.ElementsAs(ctx, &accountModels, false)...)
@@ -619,6 +643,8 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 		UserBalance:            plan.UserBalance.ValueFloat64(),
 		BalanceCredit:          plan.BalanceCredit.ValueFloat64(),
 		BalanceCurrency:        plan.BalanceCurrency.ValueString(),
+		AccountMenu:            plan.AccountMenu.ValueString(),
+		DcrPolicy:              plan.DcrPolicy.ValueString(),
 	}
 
 	success, err := r.client.AddOrganization(org)
@@ -650,6 +676,7 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 
 	if createdOrg != nil {
 		plan.CreatedTime = types.StringValue(createdOrg.CreatedTime)
+		plan.BalanceCurrency = types.StringValue(createdOrg.BalanceCurrency)
 	}
 
 	// Set list values to null if empty to match plan.
@@ -767,6 +794,8 @@ func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadReques
 	state.UserBalance = types.Float64Value(org.UserBalance)
 	state.BalanceCredit = types.Float64Value(org.BalanceCredit)
 	state.BalanceCurrency = types.StringValue(org.BalanceCurrency)
+	state.AccountMenu = types.StringValue(org.AccountMenu)
+	state.DcrPolicy = types.StringValue(org.DcrPolicy)
 
 	// Convert string slices to list types.
 	if len(org.PasswordOptions) > 0 {
@@ -903,7 +932,15 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 
 	// Convert list types to Go slices.
-	var passwordOptions, countryCodes, userTypes, tags, languages, navItems, userNavItems, widgetItems []string
+	// Use empty slices (not nil) so JSON serializes as [] instead of null.
+	passwordOptions := make([]string, 0)
+	countryCodes := make([]string, 0)
+	userTypes := make([]string, 0)
+	tags := make([]string, 0)
+	languages := make([]string, 0)
+	navItems := make([]string, 0)
+	userNavItems := make([]string, 0)
+	widgetItems := make([]string, 0)
 
 	if !plan.PasswordOptions.IsNull() {
 		resp.Diagnostics.Append(plan.PasswordOptions.ElementsAs(ctx, &passwordOptions, false)...)
@@ -950,7 +987,7 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 		}
 	}
 
-	var mfaItems []*casdoorsdk.MfaItem
+	mfaItems := make([]*casdoorsdk.MfaItem, 0)
 	if !plan.MfaItems.IsNull() {
 		var mfaModels []MfaItemModel
 		resp.Diagnostics.Append(plan.MfaItems.ElementsAs(ctx, &mfaModels, false)...)
@@ -965,7 +1002,7 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 		}
 	}
 
-	var accountItems []*casdoorsdk.AccountItem
+	accountItems := make([]*casdoorsdk.AccountItem, 0)
 	if !plan.AccountItems.IsNull() {
 		var accountModels []AccountItemModel
 		resp.Diagnostics.Append(plan.AccountItems.ElementsAs(ctx, &accountModels, false)...)
@@ -1027,6 +1064,8 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 		UserBalance:            plan.UserBalance.ValueFloat64(),
 		BalanceCredit:          plan.BalanceCredit.ValueFloat64(),
 		BalanceCurrency:        plan.BalanceCurrency.ValueString(),
+		AccountMenu:            plan.AccountMenu.ValueString(),
+		DcrPolicy:              plan.DcrPolicy.ValueString(),
 	}
 
 	success, err := r.client.UpdateOrganization(org)

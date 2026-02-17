@@ -402,7 +402,11 @@ resource "casdoor_organization" "secure" {
 ### Optional
 
 - `account_items` (Attributes List) List of account item configurations that control user profile fields visibility and editability. (see [below for nested schema](#nestedatt--account_items))
+- `account_menu` (String) The account menu configuration.
+- `balance_credit` (Number) The balance credit.
+- `balance_currency` (String) The balance currency.
 - `country_codes` (List of String) List of allowed country codes.
+- `dcr_policy` (String) The dynamic client registration policy.
 - `default_application` (String) The default application name for this organization.
 - `default_avatar` (String) The default avatar URL for users.
 - `default_password` (String, Sensitive) The default password for new users.
@@ -423,6 +427,7 @@ resource "casdoor_organization" "secure" {
 - `mfa_items` (Attributes List) List of MFA configurations. (see [below for nested schema](#nestedatt--mfa_items))
 - `mfa_remember_in_hours` (Number) Number of hours to remember MFA authentication.
 - `nav_items` (List of String) List of navigation items.
+- `org_balance` (Number) The organization balance.
 - `owner` (String) The owner of the organization. Defaults to 'admin'.
 - `password_expire_days` (Number) Number of days before password expires. 0 means no expiration.
 - `password_obfuscator_key` (String, Sensitive) The password obfuscator key.
@@ -433,6 +438,8 @@ resource "casdoor_organization" "secure" {
 - `tags` (List of String) Tags for the organization.
 - `theme_data` (Attributes) Theme configuration for the organization. (see [below for nested schema](#nestedatt--theme_data))
 - `use_email_as_username` (Boolean) Whether to use email as username.
+- `user_balance` (Number) The user balance.
+- `user_nav_items` (List of String) List of user navigation items.
 - `user_types` (List of String) List of user types allowed in the organization.
 - `website_url` (String) The website URL of the organization.
 - `widget_items` (List of String) List of widget items.
@@ -440,6 +447,7 @@ resource "casdoor_organization" "secure" {
 ### Read-Only
 
 - `created_time` (String) The time when the organization was created.
+- `id` (String) The ID of the organization in the format 'owner/name'.
 
 <a id="nestedatt--account_items"></a>
 ### Nested Schema for `account_items`

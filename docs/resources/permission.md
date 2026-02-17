@@ -87,6 +87,11 @@ resource "casdoor_permission" "api_access" {
 - `submitter` (String) The user who submitted this permission for approval.
 - `users` (List of String) List of users this permission applies to (format: 'organization/username').
 
+### Read-Only
+
+- `created_time` (String) The time when the permission was created.
+- `id` (String) The ID of the permission in the format 'owner/name'.
+
 ## Import
 
 Import is supported using the following syntax:

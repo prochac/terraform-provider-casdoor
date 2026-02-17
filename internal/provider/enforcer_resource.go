@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
@@ -39,6 +40,7 @@ type EnforcerResourceModel struct {
 	Description types.String `tfsdk:"description"`
 	Model       types.String `tfsdk:"model"`
 	Adapter     types.String `tfsdk:"adapter"`
+	IsEnabled   types.Bool   `tfsdk:"is_enabled"`
 }
 
 func NewEnforcerResource() resource.Resource {
@@ -114,6 +116,12 @@ func (r *EnforcerResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				ElementType: types.StringType,
 				Default:     mapdefault.StaticValue(types.MapValueMust(types.StringType, map[string]attr.Value{})),
 			},
+			"is_enabled": schema.BoolAttribute{
+				Description: "Whether this enforcer is enabled.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
 		},
 	}
 }
@@ -166,6 +174,7 @@ func (r *EnforcerResource) Create(ctx context.Context, req resource.CreateReques
 		Model:       plan.Model.ValueString(),
 		Adapter:     plan.Adapter.ValueString(),
 		ModelCfg:    modelCfg,
+		IsEnabled:   plan.IsEnabled.ValueBool(),
 	}
 
 	success, err := r.client.AddEnforcer(enforcer)
@@ -240,6 +249,7 @@ func (r *EnforcerResource) Read(ctx context.Context, req resource.ReadRequest, r
 	state.Description = types.StringValue(enforcer.Description)
 	state.Model = types.StringValue(enforcer.Model)
 	state.Adapter = types.StringValue(enforcer.Adapter)
+	state.IsEnabled = types.BoolValue(enforcer.IsEnabled)
 
 	state.CreatedTime = types.StringValue(enforcer.CreatedTime)
 	state.UpdatedTime = types.StringValue(enforcer.UpdatedTime)
@@ -286,6 +296,7 @@ func (r *EnforcerResource) Update(ctx context.Context, req resource.UpdateReques
 		Model:       plan.Model.ValueString(),
 		Adapter:     plan.Adapter.ValueString(),
 		ModelCfg:    modelCfg,
+		IsEnabled:   plan.IsEnabled.ValueBool(),
 	}
 
 	success, err := r.client.UpdateEnforcer(enforcer)

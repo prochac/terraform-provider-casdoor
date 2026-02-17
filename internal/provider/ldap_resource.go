@@ -114,8 +114,10 @@ func (r *LdapResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"password": schema.StringAttribute{
 				Description: "The password for the bind DN.",
-				Required:    true,
+				Optional:    true,
+				Computed:    true,
 				Sensitive:   true,
+				Default:     stringdefault.StaticString(""),
 			},
 			"base_dn": schema.StringAttribute{
 				Description: "The base DN for LDAP searches.",
@@ -192,7 +194,7 @@ func (r *LdapResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Convert filter_fields list to Go slice.
-	var filterFields []string
+	filterFields := make([]string, 0)
 	if !plan.FilterFields.IsNull() {
 		resp.Diagnostics.Append(plan.FilterFields.ElementsAs(ctx, &filterFields, false)...)
 		if resp.Diagnostics.HasError() {
@@ -310,7 +312,12 @@ func (r *LdapResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.AllowSelfSignedCert = types.BoolValue(ldap.AllowSelfSignedCert)
 	state.Username = types.StringValue(ldap.Username)
 	// Password is always masked by Casdoor API ("***"), preserve from state.
-	if ldap.Password != "***" {
+	// On import (when state is null) fall back to empty string.
+	if ldap.Password == "***" {
+		if state.Password.IsNull() {
+			state.Password = types.StringValue("")
+		}
+	} else {
 		state.Password = types.StringValue(ldap.Password)
 	}
 	state.BaseDn = types.StringValue(ldap.BaseDn)
@@ -358,7 +365,7 @@ func (r *LdapResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	// Convert filter_fields list to Go slice.
-	var filterFields []string
+	filterFields := make([]string, 0)
 	if !plan.FilterFields.IsNull() {
 		resp.Diagnostics.Append(plan.FilterFields.ElementsAs(ctx, &filterFields, false)...)
 		if resp.Diagnostics.HasError() {

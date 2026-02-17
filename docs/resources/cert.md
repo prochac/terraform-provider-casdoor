@@ -51,8 +51,8 @@ resource "casdoor_cert" "custom_cert" {
 
 ### Optional
 
-- `authority_public_key` (String) The authority public key.
-- `authority_root_public_key` (String) The authority root public key.
+- `authority_public_key` (String) The authority public key (PEM format).
+- `authority_root_public_key` (String) The authority root public key (PEM format).
 - `bit_size` (Number) The key bit size (e.g., 2048, 4096).
 - `certificate` (String) The X.509 certificate (PEM format).
 - `crypto_algorithm` (String) The cryptographic algorithm (e.g., 'RS256').
@@ -61,6 +61,11 @@ resource "casdoor_cert" "custom_cert" {
 - `private_key` (String, Sensitive) The private key (PEM format).
 - `scope` (String) The scope of the certificate (e.g., 'JWT').
 - `type` (String) The type of the certificate (e.g., 'x509').
+
+### Read-Only
+
+- `created_time` (String) The time when the certificate was created.
+- `id` (String) The ID of the certificate in the format 'owner/name'.
 
 ## Import
 

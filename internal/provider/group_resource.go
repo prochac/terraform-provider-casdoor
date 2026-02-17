@@ -190,7 +190,7 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	var users []string
+	users := make([]string, 0)
 	if !plan.Users.IsNull() && !plan.Users.IsUnknown() {
 		resp.Diagnostics.Append(plan.Users.ElementsAs(ctx, &users, false)...)
 		if resp.Diagnostics.HasError() {
@@ -324,7 +324,7 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	var users []string
+	users := make([]string, 0)
 	if !plan.Users.IsNull() && !plan.Users.IsUnknown() {
 		resp.Diagnostics.Append(plan.Users.ElementsAs(ctx, &users, false)...)
 		if resp.Diagnostics.HasError() {

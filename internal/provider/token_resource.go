@@ -47,6 +47,7 @@ type TokenResourceModel struct {
 	CodeChallenge    types.String `tfsdk:"code_challenge"`
 	CodeIsUsed       types.Bool   `tfsdk:"code_is_used"`
 	CodeExpireIn     types.Int64  `tfsdk:"code_expire_in"`
+	Resource         types.String `tfsdk:"resource"`
 }
 
 func NewTokenResource() resource.Resource {
@@ -174,6 +175,12 @@ func (r *TokenResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Computed:    true,
 				Default:     int64default.StaticInt64(0),
 			},
+			"resource": schema.StringAttribute{
+				Description: "The resource associated with this token.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
 		},
 	}
 }
@@ -224,6 +231,7 @@ func (r *TokenResource) Create(ctx context.Context, req resource.CreateRequest, 
 		CodeChallenge: plan.CodeChallenge.ValueString(),
 		CodeIsUsed:    plan.CodeIsUsed.ValueBool(),
 		CodeExpireIn:  plan.CodeExpireIn.ValueInt64(),
+		Resource:      plan.Resource.ValueString(),
 	}
 
 	success, err := r.client.AddToken(token)
@@ -305,6 +313,7 @@ func (r *TokenResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.CodeChallenge = types.StringValue(token.CodeChallenge)
 	state.CodeIsUsed = types.BoolValue(token.CodeIsUsed)
 	state.CodeExpireIn = types.Int64Value(token.CodeExpireIn)
+	state.Resource = types.StringValue(token.Resource)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -333,6 +342,7 @@ func (r *TokenResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		CodeChallenge: plan.CodeChallenge.ValueString(),
 		CodeIsUsed:    plan.CodeIsUsed.ValueBool(),
 		CodeExpireIn:  plan.CodeExpireIn.ValueInt64(),
+		Resource:      plan.Resource.ValueString(),
 	}
 
 	success, err := r.client.UpdateToken(token)

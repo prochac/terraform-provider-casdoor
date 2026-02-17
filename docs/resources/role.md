@@ -69,6 +69,11 @@ resource "casdoor_role" "super_admins" {
 - `roles` (List of String) List of sub-roles (for role hierarchy).
 - `users` (List of String) List of users assigned to this role (format: 'organization/username').
 
+### Read-Only
+
+- `created_time` (String) The time when the role was created.
+- `id` (String) The ID of the role in the format 'owner/name'.
+
 ## Import
 
 Import is supported using the following syntax:

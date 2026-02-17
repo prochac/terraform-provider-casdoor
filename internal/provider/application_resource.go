@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -94,6 +95,14 @@ type SamlItemModel struct {
 	Value      types.String `tfsdk:"value"`
 }
 
+// ScopeItemModel represents a scope item configuration.
+type ScopeItemModel struct {
+	Name        types.String `tfsdk:"name"`
+	DisplayName types.String `tfsdk:"display_name"`
+	Description types.String `tfsdk:"description"`
+	Tools       types.List   `tfsdk:"tools"`
+}
+
 // ProviderItemAttrTypes returns the attribute types for ProviderItemModel.
 func ProviderItemAttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
@@ -166,6 +175,16 @@ func SamlItemAttrTypes() map[string]attr.Type {
 	}
 }
 
+// ScopeItemAttrTypes returns the attribute types for ScopeItemModel.
+func ScopeItemAttrTypes() map[string]attr.Type {
+	return map[string]attr.Type{
+		"name":         types.StringType,
+		"display_name": types.StringType,
+		"description":  types.StringType,
+		"tools":        types.ListType{ElemType: types.StringType},
+	}
+}
+
 // ApplicationResourceModel describes the resource data model.
 type ApplicationResourceModel struct {
 	ID types.String `tfsdk:"id"`
@@ -174,6 +193,8 @@ type ApplicationResourceModel struct {
 	Name         types.String `tfsdk:"name"`
 	CreatedTime  types.String `tfsdk:"created_time"`
 	DisplayName  types.String `tfsdk:"display_name"`
+	Category     types.String `tfsdk:"category"`
+	Type         types.String `tfsdk:"type"`
 	Title        types.String `tfsdk:"title"`
 	Favicon      types.String `tfsdk:"favicon"`
 	Logo         types.String `tfsdk:"logo"`
@@ -258,6 +279,14 @@ type ApplicationResourceModel struct {
 	SigninMethods types.List `tfsdk:"signin_methods"`
 	SignupItems   types.List `tfsdk:"signup_items"`
 	SigninItems   types.List `tfsdk:"signin_items"`
+
+	// Scopes and reverse proxy
+	Scopes       types.List   `tfsdk:"scopes"`
+	Domain       types.String `tfsdk:"domain"`
+	OtherDomains types.List   `tfsdk:"other_domains"`
+	UpstreamHost types.String `tfsdk:"upstream_host"`
+	SslMode      types.String `tfsdk:"ssl_mode"`
+	SslCert      types.String `tfsdk:"ssl_cert"`
 }
 
 // NewApplicationResource creates a new Application resource.
@@ -307,6 +336,18 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"display_name": schema.StringAttribute{
 				Description: "The display name of the application.",
 				Required:    true,
+			},
+			"category": schema.StringAttribute{
+				Description: "The category of the application.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"type": schema.StringAttribute{
+				Description: "The type of the application.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
 			},
 			"title": schema.StringAttribute{
 				Description: "The title of the application.",
@@ -727,13 +768,17 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Description: "Maximum number of failed signin attempts before lockout.",
 				Optional:    true,
 				Computed:    true,
-				Default:     int64default.StaticInt64(5),
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"failed_signin_frozen_time": schema.Int64Attribute{
 				Description: "Duration in minutes to freeze account after exceeding failed signin limit.",
 				Optional:    true,
 				Computed:    true,
-				Default:     int64default.StaticInt64(15),
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 
 			// Misc
@@ -955,6 +1000,64 @@ func (r *ApplicationResource) Schema(_ context.Context, _ resource.SchemaRequest
 					},
 				},
 			},
+			"scopes": schema.ListNestedAttribute{
+				Description: "List of OAuth scopes for MCP tool authorization.",
+				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "The name of the scope.",
+							Required:    true,
+						},
+						"display_name": schema.StringAttribute{
+							Description: "The display name of the scope.",
+							Optional:    true,
+						},
+						"description": schema.StringAttribute{
+							Description: "The description of the scope.",
+							Optional:    true,
+						},
+						"tools": schema.ListAttribute{
+							Description: "MCP tools allowed by this scope.",
+							Optional:    true,
+							ElementType: types.StringType,
+						},
+					},
+				},
+			},
+			"domain": schema.StringAttribute{
+				Description: "The domain for reverse proxy.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"other_domains": schema.ListAttribute{
+				Description: "Additional domains for the application.",
+				Optional:    true,
+				ElementType: types.StringType,
+			},
+			"upstream_host": schema.StringAttribute{
+				Description: "The upstream host for reverse proxy.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"ssl_mode": schema.StringAttribute{
+				Description: "The SSL mode for reverse proxy.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"ssl_cert": schema.StringAttribute{
+				Description: "The SSL certificate for reverse proxy.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
 		},
 	}
 }
@@ -985,7 +1088,11 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Convert list types to Go slices.
-	var redirectURIs, grantTypes, tokenFields, tags []string
+	// Use empty slices (not nil) so JSON serializes as [] instead of null.
+	redirectURIs := make([]string, 0)
+	grantTypes := make([]string, 0)
+	tokenFields := make([]string, 0)
+	tags := make([]string, 0)
 
 	if !plan.RedirectURIs.IsNull() && !plan.RedirectURIs.IsUnknown() {
 		resp.Diagnostics.Append(plan.RedirectURIs.ElementsAs(ctx, &redirectURIs, false)...)
@@ -1021,7 +1128,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Convert providers
-	var providers []*casdoorsdk.ProviderItem
+	providers := make([]*casdoorsdk.ProviderItem, 0)
 	if !plan.Providers.IsNull() && !plan.Providers.IsUnknown() {
 		var providerModels []ProviderItemModel
 		resp.Diagnostics.Append(plan.Providers.ElementsAs(ctx, &providerModels, false)...)
@@ -1048,7 +1155,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Convert signin methods
-	var signinMethods []*casdoorsdk.SigninMethod
+	signinMethods := make([]*casdoorsdk.SigninMethod, 0)
 	if !plan.SigninMethods.IsNull() && !plan.SigninMethods.IsUnknown() {
 		var methodModels []SigninMethodModel
 		resp.Diagnostics.Append(plan.SigninMethods.ElementsAs(ctx, &methodModels, false)...)
@@ -1065,7 +1172,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Convert signup items
-	var signupItems []*casdoorsdk.SignupItem
+	signupItems := make([]*casdoorsdk.SignupItem, 0)
 	if !plan.SignupItems.IsNull() && !plan.SignupItems.IsUnknown() {
 		var itemModels []SignupItemModel
 		resp.Diagnostics.Append(plan.SignupItems.ElementsAs(ctx, &itemModels, false)...)
@@ -1094,7 +1201,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Convert signin items
-	var signinItems []*casdoorsdk.SigninItem
+	signinItems := make([]*casdoorsdk.SigninItem, 0)
 	if !plan.SigninItems.IsNull() && !plan.SigninItems.IsUnknown() {
 		var itemModels []SigninItemModel
 		resp.Diagnostics.Append(plan.SigninItems.ElementsAs(ctx, &itemModels, false)...)
@@ -1115,7 +1222,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Convert SAML attributes
-	var samlAttributes []*casdoorsdk.SamlItem
+	samlAttributes := make([]*casdoorsdk.SamlItem, 0)
 	if !plan.SamlAttributes.IsNull() && !plan.SamlAttributes.IsUnknown() {
 		var samlModels []SamlItemModel
 		resp.Diagnostics.Append(plan.SamlAttributes.ElementsAs(ctx, &samlModels, false)...)
@@ -1132,7 +1239,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Convert token attributes
-	var tokenAttributes []*casdoorsdk.JwtItem
+	tokenAttributes := make([]*casdoorsdk.JwtItem, 0)
 	if !plan.TokenAttributes.IsNull() && !plan.TokenAttributes.IsUnknown() {
 		var jwtModels []JwtItemModel
 		resp.Diagnostics.Append(plan.TokenAttributes.ElementsAs(ctx, &jwtModels, false)...)
@@ -1146,6 +1253,34 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 				Type:  j.Type.ValueString(),
 			})
 		}
+	}
+
+	// Convert scopes
+	scopes := make([]*casdoorsdk.ScopeItem, 0)
+	if !plan.Scopes.IsNull() && !plan.Scopes.IsUnknown() {
+		var scopeModels []ScopeItemModel
+		resp.Diagnostics.Append(plan.Scopes.ElementsAs(ctx, &scopeModels, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		for _, s := range scopeModels {
+			tools := make([]string, 0)
+			if !s.Tools.IsNull() && !s.Tools.IsUnknown() {
+				resp.Diagnostics.Append(s.Tools.ElementsAs(ctx, &tools, false)...)
+			}
+			scopes = append(scopes, &casdoorsdk.ScopeItem{
+				Name:        s.Name.ValueString(),
+				DisplayName: s.DisplayName.ValueString(),
+				Description: s.Description.ValueString(),
+				Tools:       tools,
+			})
+		}
+	}
+
+	// Convert other domains
+	otherDomains := make([]string, 0)
+	if !plan.OtherDomains.IsNull() && !plan.OtherDomains.IsUnknown() {
+		resp.Diagnostics.Append(plan.OtherDomains.ElementsAs(ctx, &otherDomains, false)...)
 	}
 
 	if resp.Diagnostics.HasError() {
@@ -1162,6 +1297,8 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		Name:                         plan.Name.ValueString(),
 		CreatedTime:                  createdTime,
 		DisplayName:                  plan.DisplayName.ValueString(),
+		Category:                     plan.Category.ValueString(),
+		Type:                         plan.Type.ValueString(),
 		Title:                        plan.Title.ValueString(),
 		Favicon:                      plan.Favicon.ValueString(),
 		Logo:                         plan.Logo.ValueString(),
@@ -1227,6 +1364,12 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		SigninMethods:                signinMethods,
 		SignupItems:                  signupItems,
 		SigninItems:                  signinItems,
+		Scopes:                       scopes,
+		Domain:                       plan.Domain.ValueString(),
+		OtherDomains:                 otherDomains,
+		UpstreamHost:                 plan.UpstreamHost.ValueString(),
+		SslMode:                      plan.SslMode.ValueString(),
+		SslCert:                      plan.SslCert.ValueString(),
 	}
 
 	success, err := r.client.AddApplication(app)
@@ -1269,6 +1412,8 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	plan.ClientID = types.StringValue(createdApp.ClientId)
 	plan.ClientSecret = types.StringValue(createdApp.ClientSecret)
 	plan.CertPublicKey = types.StringValue(createdApp.CertPublicKey)
+	plan.FailedSigninLimit = types.Int64Value(int64(createdApp.FailedSigninLimit))
+	plan.FailedSigninFrozenTime = types.Int64Value(int64(createdApp.FailedSigninFrozenTime))
 
 	// For computed list/object fields that were unknown (not set in config),
 	// populate them from the API response. For fields that were set in config,
@@ -1485,6 +1630,46 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		}
 	}
 
+	// Scopes
+	if plan.Scopes.IsUnknown() {
+		if len(createdApp.Scopes) > 0 {
+			scopeObjList := make([]attr.Value, 0, len(createdApp.Scopes))
+			for _, s := range createdApp.Scopes {
+				var tools basetypes.ListValue
+				if len(s.Tools) > 0 {
+					toolsList, toolsDiags := types.ListValueFrom(ctx, types.StringType, s.Tools)
+					resp.Diagnostics.Append(toolsDiags...)
+					tools = toolsList
+				} else {
+					tools = types.ListNull(types.StringType)
+				}
+				scopeObj, diags := types.ObjectValue(ScopeItemAttrTypes(), map[string]attr.Value{
+					"name":         types.StringValue(s.Name),
+					"display_name": types.StringValue(s.DisplayName),
+					"description":  types.StringValue(s.Description),
+					"tools":        tools,
+				})
+				resp.Diagnostics.Append(diags...)
+				scopeObjList = append(scopeObjList, scopeObj)
+			}
+			scopeList, diags := types.ListValue(types.ObjectType{AttrTypes: ScopeItemAttrTypes()}, scopeObjList)
+			resp.Diagnostics.Append(diags...)
+			plan.Scopes = scopeList
+		} else {
+			plan.Scopes = types.ListNull(types.ObjectType{AttrTypes: ScopeItemAttrTypes()})
+		}
+	}
+	// OtherDomains
+	if plan.OtherDomains.IsUnknown() || plan.OtherDomains.IsNull() {
+		if len(createdApp.OtherDomains) > 0 {
+			otherDomainsList, diags := types.ListValueFrom(ctx, types.StringType, createdApp.OtherDomains)
+			resp.Diagnostics.Append(diags...)
+			plan.OtherDomains = otherDomainsList
+		} else {
+			plan.OtherDomains = types.ListNull(types.StringType)
+		}
+	}
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -1521,6 +1706,8 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	state.Name = types.StringValue(app.Name)
 	state.CreatedTime = types.StringValue(app.CreatedTime)
 	state.DisplayName = types.StringValue(app.DisplayName)
+	state.Category = types.StringValue(app.Category)
+	state.Type = types.StringValue(app.Type)
 	state.Title = types.StringValue(app.Title)
 	state.Favicon = types.StringValue(app.Favicon)
 	state.Logo = types.StringValue(app.Logo)
@@ -1578,6 +1765,10 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	state.CertPublicKey = types.StringValue(app.CertPublicKey)
 	state.ForcedRedirectOrigin = types.StringValue(app.ForcedRedirectOrigin)
 	state.Order = types.Int64Value(int64(app.Order))
+	state.Domain = types.StringValue(app.Domain)
+	state.UpstreamHost = types.StringValue(app.UpstreamHost)
+	state.SslMode = types.StringValue(app.SslMode)
+	state.SslCert = types.StringValue(app.SslCert)
 
 	// Convert string slices to list types
 	if len(app.RedirectUris) > 0 {
@@ -1775,6 +1966,43 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 		state.TokenAttributes = types.ListNull(types.ObjectType{AttrTypes: JwtItemAttrTypes()})
 	}
 
+	// Convert Scopes to list of objects
+	if len(app.Scopes) > 0 {
+		scopeObjList := make([]attr.Value, 0, len(app.Scopes))
+		for _, s := range app.Scopes {
+			var tools basetypes.ListValue
+			if len(s.Tools) > 0 {
+				toolsList, toolsDiags := types.ListValueFrom(ctx, types.StringType, s.Tools)
+				resp.Diagnostics.Append(toolsDiags...)
+				tools = toolsList
+			} else {
+				tools = types.ListNull(types.StringType)
+			}
+			scopeObj, diags := types.ObjectValue(ScopeItemAttrTypes(), map[string]attr.Value{
+				"name":         types.StringValue(s.Name),
+				"display_name": types.StringValue(s.DisplayName),
+				"description":  types.StringValue(s.Description),
+				"tools":        tools,
+			})
+			resp.Diagnostics.Append(diags...)
+			scopeObjList = append(scopeObjList, scopeObj)
+		}
+		scopeList, diags := types.ListValue(types.ObjectType{AttrTypes: ScopeItemAttrTypes()}, scopeObjList)
+		resp.Diagnostics.Append(diags...)
+		state.Scopes = scopeList
+	} else {
+		state.Scopes = types.ListNull(types.ObjectType{AttrTypes: ScopeItemAttrTypes()})
+	}
+
+	// Convert OtherDomains
+	if len(app.OtherDomains) > 0 {
+		otherDomains, diags := types.ListValueFrom(ctx, types.StringType, app.OtherDomains)
+		resp.Diagnostics.Append(diags...)
+		state.OtherDomains = otherDomains
+	} else {
+		state.OtherDomains = types.ListNull(types.StringType)
+	}
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -1798,7 +2026,11 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	// Convert list types to Go slices.
-	var redirectURIs, grantTypes, tokenFields, tags []string
+	// Use empty slices (not nil) so JSON serializes as [] instead of null.
+	redirectURIs := make([]string, 0)
+	grantTypes := make([]string, 0)
+	tokenFields := make([]string, 0)
+	tags := make([]string, 0)
 
 	if !plan.RedirectURIs.IsNull() && !plan.RedirectURIs.IsUnknown() {
 		resp.Diagnostics.Append(plan.RedirectURIs.ElementsAs(ctx, &redirectURIs, false)...)
@@ -1834,7 +2066,7 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	// Convert providers
-	var providers []*casdoorsdk.ProviderItem
+	providers := make([]*casdoorsdk.ProviderItem, 0)
 	if !plan.Providers.IsNull() && !plan.Providers.IsUnknown() {
 		var providerModels []ProviderItemModel
 		resp.Diagnostics.Append(plan.Providers.ElementsAs(ctx, &providerModels, false)...)
@@ -1861,7 +2093,7 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	// Convert signin methods
-	var signinMethods []*casdoorsdk.SigninMethod
+	signinMethods := make([]*casdoorsdk.SigninMethod, 0)
 	if !plan.SigninMethods.IsNull() && !plan.SigninMethods.IsUnknown() {
 		var methodModels []SigninMethodModel
 		resp.Diagnostics.Append(plan.SigninMethods.ElementsAs(ctx, &methodModels, false)...)
@@ -1878,7 +2110,7 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	// Convert signup items
-	var signupItems []*casdoorsdk.SignupItem
+	signupItems := make([]*casdoorsdk.SignupItem, 0)
 	if !plan.SignupItems.IsNull() && !plan.SignupItems.IsUnknown() {
 		var itemModels []SignupItemModel
 		resp.Diagnostics.Append(plan.SignupItems.ElementsAs(ctx, &itemModels, false)...)
@@ -1907,7 +2139,7 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	// Convert signin items
-	var signinItems []*casdoorsdk.SigninItem
+	signinItems := make([]*casdoorsdk.SigninItem, 0)
 	if !plan.SigninItems.IsNull() && !plan.SigninItems.IsUnknown() {
 		var itemModels []SigninItemModel
 		resp.Diagnostics.Append(plan.SigninItems.ElementsAs(ctx, &itemModels, false)...)
@@ -1928,7 +2160,7 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	// Convert SAML attributes
-	var samlAttributes []*casdoorsdk.SamlItem
+	samlAttributes := make([]*casdoorsdk.SamlItem, 0)
 	if !plan.SamlAttributes.IsNull() && !plan.SamlAttributes.IsUnknown() {
 		var samlModels []SamlItemModel
 		resp.Diagnostics.Append(plan.SamlAttributes.ElementsAs(ctx, &samlModels, false)...)
@@ -1945,7 +2177,7 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	// Convert token attributes
-	var tokenAttributes []*casdoorsdk.JwtItem
+	tokenAttributes := make([]*casdoorsdk.JwtItem, 0)
 	if !plan.TokenAttributes.IsNull() && !plan.TokenAttributes.IsUnknown() {
 		var jwtModels []JwtItemModel
 		resp.Diagnostics.Append(plan.TokenAttributes.ElementsAs(ctx, &jwtModels, false)...)
@@ -1961,6 +2193,34 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 		}
 	}
 
+	// Convert scopes
+	scopes := make([]*casdoorsdk.ScopeItem, 0)
+	if !plan.Scopes.IsNull() && !plan.Scopes.IsUnknown() {
+		var scopeModels []ScopeItemModel
+		resp.Diagnostics.Append(plan.Scopes.ElementsAs(ctx, &scopeModels, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		for _, s := range scopeModels {
+			tools := make([]string, 0)
+			if !s.Tools.IsNull() && !s.Tools.IsUnknown() {
+				resp.Diagnostics.Append(s.Tools.ElementsAs(ctx, &tools, false)...)
+			}
+			scopes = append(scopes, &casdoorsdk.ScopeItem{
+				Name:        s.Name.ValueString(),
+				DisplayName: s.DisplayName.ValueString(),
+				Description: s.Description.ValueString(),
+				Tools:       tools,
+			})
+		}
+	}
+
+	// Convert other domains
+	otherDomains := make([]string, 0)
+	if !plan.OtherDomains.IsNull() && !plan.OtherDomains.IsUnknown() {
+		resp.Diagnostics.Append(plan.OtherDomains.ElementsAs(ctx, &otherDomains, false)...)
+	}
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -1970,6 +2230,8 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 		Name:                         plan.Name.ValueString(),
 		CreatedTime:                  state.CreatedTime.ValueString(),
 		DisplayName:                  plan.DisplayName.ValueString(),
+		Category:                     plan.Category.ValueString(),
+		Type:                         plan.Type.ValueString(),
 		Title:                        plan.Title.ValueString(),
 		Favicon:                      plan.Favicon.ValueString(),
 		Logo:                         plan.Logo.ValueString(),
@@ -2037,6 +2299,12 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 		SigninMethods:                signinMethods,
 		SignupItems:                  signupItems,
 		SigninItems:                  signinItems,
+		Scopes:                       scopes,
+		Domain:                       plan.Domain.ValueString(),
+		OtherDomains:                 otherDomains,
+		UpstreamHost:                 plan.UpstreamHost.ValueString(),
+		SslMode:                      plan.SslMode.ValueString(),
+		SslCert:                      plan.SslCert.ValueString(),
 	}
 
 	success, err := r.client.UpdateApplication(app)
@@ -2092,6 +2360,12 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 	if len(signinItems) == 0 {
 		plan.SigninItems = types.ListNull(types.ObjectType{AttrTypes: SigninItemAttrTypes()})
+	}
+	if len(scopes) == 0 {
+		plan.Scopes = types.ListNull(types.ObjectType{AttrTypes: ScopeItemAttrTypes()})
+	}
+	if len(otherDomains) == 0 {
+		plan.OtherDomains = types.ListNull(types.StringType)
 	}
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())

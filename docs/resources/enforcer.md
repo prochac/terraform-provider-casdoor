@@ -61,7 +61,14 @@ resource "casdoor_enforcer" "api" {
 - `adapter` (String) The Casbin adapter name to use (format: 'organization/adapter-name').
 - `description` (String) A description of the enforcer.
 - `display_name` (String) The display name of the enforcer.
-- `is_enabled` (Boolean) Whether the enforcer is enabled.
+- `is_enabled` (Boolean) Whether this enforcer is enabled.
+- `model_cfg` (Map of String) The model configuration key-value pairs.
+
+### Read-Only
+
+- `created_time` (String) The time when the enforcer was created.
+- `id` (String) The ID of the enforcer in the format 'owner/name'.
+- `updated_time` (String) The time when the enforcer was last updated.
 
 ## Import
 

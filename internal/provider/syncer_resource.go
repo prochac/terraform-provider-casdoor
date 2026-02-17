@@ -511,6 +511,16 @@ func (r *SyncerResource) Read(ctx context.Context, req resource.ReadRequest, res
 		state.Password = types.StringValue(syncer.Password)
 	}
 	state.DatabaseType = types.StringValue(syncer.DatabaseType)
+	state.SslMode = types.StringValue(syncer.SslMode)
+	state.SshType = types.StringValue(syncer.SshType)
+	state.SshHost = types.StringValue(syncer.SshHost)
+	state.SshPort = types.Int64Value(int64(syncer.SshPort))
+	state.SshUser = types.StringValue(syncer.SshUser)
+	// SshPassword is always masked by Casdoor API ("***"), preserve from state.
+	if syncer.SshPassword != "***" {
+		state.SshPassword = types.StringValue(syncer.SshPassword)
+	}
+	state.Cert = types.StringValue(syncer.Cert)
 	state.Database = types.StringValue(syncer.Database)
 	state.Table = types.StringValue(syncer.Table)
 	state.AffiliationTable = types.StringValue(syncer.AffiliationTable)

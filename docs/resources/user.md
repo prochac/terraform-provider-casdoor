@@ -51,37 +51,170 @@ resource "casdoor_user" "admin" {
 
 ### Optional
 
+- `access_key` (String, Sensitive) The user's access key.
+- `access_secret` (String, Sensitive) The user's access secret.
+- `access_token` (String, Sensitive) The user's access token.
+- `address` (List of String) The user's address lines.
+- `addresses` (Attributes List) The user's structured addresses. (see [below for nested schema](#nestedatt--addresses))
 - `affiliation` (String) The user's affiliation (e.g., company name).
 - `avatar` (String) URL of the user's avatar.
+- `avatar_type` (String) The type of avatar.
+- `balance` (Number) The user's balance.
+- `balance_credit` (Number) The user's balance credit.
+- `balance_currency` (String) The user's balance currency.
 - `bio` (String) The user's biography.
 - `birthday` (String) The user's birthday (ISO 8601 format).
+- `cart` (Attributes List) The user's shopping cart. (see [below for nested schema](#nestedatt--cart))
 - `country_code` (String) The country code for the phone number.
+- `currency` (String) The user's currency.
 - `display_name` (String) The display name of the user.
 - `education` (String) The user's education level.
 - `email` (String) The user's email address.
 - `email_verified` (Boolean) Whether the user's email has been verified.
+- `external_id` (String) External ID for the user.
+- `face_ids` (Attributes List) The user's face IDs. (see [below for nested schema](#nestedatt--face_ids))
 - `first_name` (String) The user's first name.
 - `gender` (String) The user's gender.
 - `groups` (List of String) List of groups the user belongs to.
 - `homepage` (String) The user's homepage URL.
-- `id` (String) The user ID (auto-generated if not provided).
+- `id_card` (String, Sensitive) The ID card number.
+- `id_card_type` (String) The type of ID card.
+- `invitation` (String) The invitation used to sign up.
+- `invitation_code` (String) The invitation code used to sign up.
+- `ip_whitelist` (String) The IP whitelist for the user.
 - `is_admin` (Boolean) Whether the user is an administrator.
 - `is_deleted` (Boolean) Whether the user is soft-deleted.
 - `is_forbidden` (Boolean) Whether the user is forbidden (disabled).
+- `is_verified` (Boolean) Whether the user is verified.
 - `karma` (Number) The user's karma points.
 - `language` (String) The user's preferred language.
 - `last_name` (String) The user's last name.
+- `ldap` (String) LDAP identifier.
 - `location` (String) The user's location.
+- `managed_accounts` (Attributes List) The user's managed accounts. (see [below for nested schema](#nestedatt--managed_accounts))
+- `mfa_accounts` (Attributes List) The user's MFA accounts. (see [below for nested schema](#nestedatt--mfa_accounts))
+- `mfa_email_enabled` (Boolean) Whether email-based MFA is enabled.
+- `mfa_items` (Attributes List) The user's MFA items. (see [below for nested schema](#nestedatt--mfa_items))
+- `mfa_phone_enabled` (Boolean) Whether phone-based MFA is enabled.
+- `mfa_push_enabled` (Boolean) Whether push-based MFA is enabled.
+- `mfa_push_provider` (String) The push MFA provider.
+- `mfa_push_receiver` (String) The push MFA receiver.
+- `mfa_radius_enabled` (Boolean) Whether RADIUS-based MFA is enabled.
+- `mfa_radius_provider` (String) The RADIUS MFA provider.
+- `mfa_radius_username` (String) The RADIUS MFA username.
+- `mfa_remember_deadline` (String) The MFA remember deadline.
+- `need_update_password` (Boolean) Whether the user needs to update their password.
+- `original_refresh_token` (String, Sensitive) The user's original refresh token.
+- `original_token` (String, Sensitive) The user's original token.
 - `password` (String, Sensitive) The user's password. Note: This is write-only and will not be read back from Casdoor.
+- `password_salt` (String, Sensitive) The password salt.
 - `password_type` (String) The password hashing type.
+- `permanent_avatar` (String) URL of the permanent avatar.
 - `phone` (String) The user's phone number.
+- `preferred_mfa_type` (String) The preferred MFA type.
+- `properties` (Map of String) Custom properties for the user.
 - `ranking` (Number) The user's ranking.
+- `real_name` (String) The user's real name.
+- `recovery_codes` (List of String, Sensitive) MFA recovery codes.
 - `region` (String) The user's region.
+- `register_source` (String) The registration source.
+- `register_type` (String) The registration type.
 - `score` (Number) The user's score.
 - `signup_application` (String) The application through which the user signed up.
+- `social_logins` (Map of String) Social login provider IDs. Keys are provider names (e.g., 'github', 'google').
 - `tag` (String) A tag for the user.
 - `title` (String) The user's job title.
+- `totp_secret` (String, Sensitive) The TOTP secret for MFA.
 - `type` (String) The user type (e.g., 'normal-user').
+
+### Read-Only
+
+- `created_ip` (String) The IP address the user was created from.
+- `created_time` (String) The time when the user was created.
+- `deleted_time` (String) The time when the user was soft-deleted. Server-managed.
+- `hash` (String) The user hash.
+- `id` (String) The ID of the user in the format 'owner/name'.
+- `is_default_avatar` (Boolean) Whether the user has the default avatar.
+- `is_online` (Boolean) Whether the user is currently online.
+- `last_change_password_time` (String) The last time the password was changed.
+- `last_signin_ip` (String) The last sign-in IP address.
+- `last_signin_time` (String) The last sign-in time.
+- `last_signin_wrong_time` (String) The last time a wrong sign-in attempt was made.
+- `pre_hash` (String) The previous user hash.
+- `signin_wrong_times` (Number) The number of wrong sign-in attempts.
+- `updated_time` (String) The time when the user was last updated.
+
+<a id="nestedatt--addresses"></a>
+### Nested Schema for `addresses`
+
+Optional:
+
+- `city` (String) City.
+- `line1` (String) Address line 1.
+- `line2` (String) Address line 2.
+- `region` (String) Region/country.
+- `state` (String) State/province.
+- `tag` (String) Address tag/label.
+- `zip_code` (String) ZIP/postal code.
+
+
+<a id="nestedatt--cart"></a>
+### Nested Schema for `cart`
+
+Optional:
+
+- `currency` (String) The product currency.
+- `detail` (String) The product detail.
+- `display_name` (String) The product display name.
+- `image` (String) The product image URL.
+- `is_recharge` (Boolean) Whether this is a recharge product.
+- `name` (String) The product name.
+- `owner` (String) The product owner.
+- `plan_name` (String) The plan name.
+- `price` (Number) The product price.
+- `pricing_name` (String) The pricing name.
+- `quantity` (Number) The product quantity.
+
+
+<a id="nestedatt--face_ids"></a>
+### Nested Schema for `face_ids`
+
+Optional:
+
+- `face_id_data` (List of Number) The face ID data points.
+- `image_url` (String) The face image URL.
+- `name` (String) The face ID name.
+
+
+<a id="nestedatt--managed_accounts"></a>
+### Nested Schema for `managed_accounts`
+
+Optional:
+
+- `application` (String) The application name.
+- `password` (String, Sensitive) The account password.
+- `signin_url` (String) The sign-in URL.
+- `username` (String) The account username.
+
+
+<a id="nestedatt--mfa_accounts"></a>
+### Nested Schema for `mfa_accounts`
+
+Optional:
+
+- `account_name` (String) The MFA account name.
+- `issuer` (String) The MFA issuer.
+- `origin` (String) The MFA origin.
+- `secret_key` (String, Sensitive) The MFA secret key.
+
+
+<a id="nestedatt--mfa_items"></a>
+### Nested Schema for `mfa_items`
+
+Optional:
+
+- `name` (String) The MFA item name.
+- `rule` (String) The MFA item rule.
 
 ## Import
 

@@ -10,6 +10,7 @@ import (
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -27,13 +28,20 @@ type ModelResource struct {
 }
 
 type ModelResourceModel struct {
-	ID          types.String `tfsdk:"id"`
-	Owner       types.String `tfsdk:"owner"`
-	Name        types.String `tfsdk:"name"`
-	CreatedTime types.String `tfsdk:"created_time"`
-	Description types.String `tfsdk:"description"`
-	DisplayName types.String `tfsdk:"display_name"`
-	ModelText   types.String `tfsdk:"model_text"`
+	ID           types.String `tfsdk:"id"`
+	Owner        types.String `tfsdk:"owner"`
+	Name         types.String `tfsdk:"name"`
+	CreatedTime  types.String `tfsdk:"created_time"`
+	UpdatedTime  types.String `tfsdk:"updated_time"`
+	Description  types.String `tfsdk:"description"`
+	DisplayName  types.String `tfsdk:"display_name"`
+	ModelText    types.String `tfsdk:"model_text"`
+	Manager      types.String `tfsdk:"manager"`
+	ContactEmail types.String `tfsdk:"contact_email"`
+	Type         types.String `tfsdk:"type"`
+	ParentId     types.String `tfsdk:"parent_id"`
+	IsTopModel   types.Bool   `tfsdk:"is_top_model"`
+	IsEnabled    types.Bool   `tfsdk:"is_enabled"`
 }
 
 func NewModelResource() resource.Resource {
@@ -92,6 +100,46 @@ func (r *ModelResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Description: "The Casbin model definition text (PERM format).",
 				Required:    true,
 			},
+			"updated_time": schema.StringAttribute{
+				Description: "The time when the model was last updated.",
+				Computed:    true,
+			},
+			"manager": schema.StringAttribute{
+				Description: "The manager of this model.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"contact_email": schema.StringAttribute{
+				Description: "The contact email for this model.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"type": schema.StringAttribute{
+				Description: "The type of the model.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"parent_id": schema.StringAttribute{
+				Description: "The parent model ID.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+			},
+			"is_top_model": schema.BoolAttribute{
+				Description: "Whether this is a top-level model.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
+			"is_enabled": schema.BoolAttribute{
+				Description: "Whether this model is enabled.",
+				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(false),
+			},
 		},
 	}
 }
@@ -127,12 +175,18 @@ func (r *ModelResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	model := &casdoorsdk.Model{
-		Owner:       plan.Owner.ValueString(),
-		Name:        plan.Name.ValueString(),
-		CreatedTime: createdTime,
-		Description: plan.Description.ValueString(),
-		DisplayName: plan.DisplayName.ValueString(),
-		ModelText:   plan.ModelText.ValueString(),
+		Owner:        plan.Owner.ValueString(),
+		Name:         plan.Name.ValueString(),
+		CreatedTime:  createdTime,
+		Description:  plan.Description.ValueString(),
+		DisplayName:  plan.DisplayName.ValueString(),
+		ModelText:    plan.ModelText.ValueString(),
+		Manager:      plan.Manager.ValueString(),
+		ContactEmail: plan.ContactEmail.ValueString(),
+		Type:         plan.Type.ValueString(),
+		ParentId:     plan.ParentId.ValueString(),
+		IsTopModel:   plan.IsTopModel.ValueBool(),
+		IsEnabled:    plan.IsEnabled.ValueBool(),
 	}
 
 	success, err := r.client.AddModel(model)
@@ -164,6 +218,7 @@ func (r *ModelResource) Create(ctx context.Context, req resource.CreateRequest, 
 
 	if createdModel != nil {
 		plan.CreatedTime = types.StringValue(createdModel.CreatedTime)
+		plan.UpdatedTime = types.StringValue(createdModel.UpdatedTime)
 		plan.ModelText = types.StringValue(createdModel.ModelText)
 	}
 
@@ -197,9 +252,16 @@ func (r *ModelResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.Owner = types.StringValue(model.Owner)
 	state.Name = types.StringValue(model.Name)
 	state.CreatedTime = types.StringValue(model.CreatedTime)
+	state.UpdatedTime = types.StringValue(model.UpdatedTime)
 	state.Description = types.StringValue(model.Description)
 	state.DisplayName = types.StringValue(model.DisplayName)
 	state.ModelText = types.StringValue(model.ModelText)
+	state.Manager = types.StringValue(model.Manager)
+	state.ContactEmail = types.StringValue(model.ContactEmail)
+	state.Type = types.StringValue(model.Type)
+	state.ParentId = types.StringValue(model.ParentId)
+	state.IsTopModel = types.BoolValue(model.IsTopModel)
+	state.IsEnabled = types.BoolValue(model.IsEnabled)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -213,12 +275,18 @@ func (r *ModelResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	model := &casdoorsdk.Model{
-		Owner:       plan.Owner.ValueString(),
-		Name:        plan.Name.ValueString(),
-		CreatedTime: plan.CreatedTime.ValueString(),
-		Description: plan.Description.ValueString(),
-		DisplayName: plan.DisplayName.ValueString(),
-		ModelText:   plan.ModelText.ValueString(),
+		Owner:        plan.Owner.ValueString(),
+		Name:         plan.Name.ValueString(),
+		CreatedTime:  plan.CreatedTime.ValueString(),
+		Description:  plan.Description.ValueString(),
+		DisplayName:  plan.DisplayName.ValueString(),
+		ModelText:    plan.ModelText.ValueString(),
+		Manager:      plan.Manager.ValueString(),
+		ContactEmail: plan.ContactEmail.ValueString(),
+		Type:         plan.Type.ValueString(),
+		ParentId:     plan.ParentId.ValueString(),
+		IsTopModel:   plan.IsTopModel.ValueBool(),
+		IsEnabled:    plan.IsEnabled.ValueBool(),
 	}
 
 	_, err := r.client.UpdateModel(model)
@@ -233,6 +301,7 @@ func (r *ModelResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	// Read back to get server-normalized values.
 	updatedModel, err := r.client.GetModel(plan.Name.ValueString())
 	if err == nil && updatedModel != nil {
+		plan.UpdatedTime = types.StringValue(updatedModel.UpdatedTime)
 		plan.ModelText = types.StringValue(updatedModel.ModelText)
 	}
 

@@ -46,8 +46,16 @@ resource "casdoor_token" "example" {
 - `code_is_used` (Boolean) Whether the authorization code has been used.
 - `expires_in` (Number) Token expiration time in seconds.
 - `refresh_token` (String, Sensitive) The refresh token.
+- `resource` (String) The resource associated with this token.
 - `scope` (String) The scope of the token.
 - `token_type` (String) The type of the token (e.g., 'Bearer').
+
+### Read-Only
+
+- `access_token_hash` (String) The hash of the access token.
+- `created_time` (String) The time when the token was created.
+- `id` (String) The ID of the token in the format 'owner/name'.
+- `refresh_token_hash` (String) The hash of the refresh token.
 
 ## Import
 
