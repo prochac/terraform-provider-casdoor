@@ -180,20 +180,8 @@ func (r *EnforcerResource) Create(ctx context.Context, req resource.CreateReques
 		IsEnabled:   plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.AddEnforcer(enforcer)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Enforcer",
-			fmt.Sprintf("Could not create enforcer %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Enforcer",
-			fmt.Sprintf("Casdoor returned failure when creating enforcer %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddEnforcer(enforcer)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating enforcer %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -308,20 +296,8 @@ func (r *EnforcerResource) Update(ctx context.Context, req resource.UpdateReques
 		IsEnabled:   plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.UpdateEnforcer(enforcer)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Enforcer",
-			fmt.Sprintf("Could not update enforcer %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Enforcer",
-			fmt.Sprintf("Casdoor returned failure when updating enforcer %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateEnforcer(enforcer)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating enforcer %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -361,20 +337,8 @@ func (r *EnforcerResource) Delete(ctx context.Context, req resource.DeleteReques
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteEnforcer(enforcer)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Enforcer",
-			fmt.Sprintf("Could not delete enforcer %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Enforcer",
-			fmt.Sprintf("Casdoor returned failure when deleting enforcer %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeleteEnforcer(enforcer)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting enforcer %q", state.Name.ValueString())) {
 		return
 	}
 }

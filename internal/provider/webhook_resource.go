@@ -264,16 +264,12 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	var events, tokenFields, objectFields []string
-	if !plan.Events.IsNull() && !plan.Events.IsUnknown() {
-		resp.Diagnostics.Append(plan.Events.ElementsAs(ctx, &events, false)...)
-	}
-	if !plan.TokenFields.IsNull() && !plan.TokenFields.IsUnknown() {
-		resp.Diagnostics.Append(plan.TokenFields.ElementsAs(ctx, &tokenFields, false)...)
-	}
-	if !plan.ObjectFields.IsNull() && !plan.ObjectFields.IsUnknown() {
-		resp.Diagnostics.Append(plan.ObjectFields.ElementsAs(ctx, &objectFields, false)...)
-	}
+	events, diags := stringListToSDK(ctx, plan.Events)
+	resp.Diagnostics.Append(diags...)
+	tokenFields, diags := stringListToSDK(ctx, plan.TokenFields)
+	resp.Diagnostics.Append(diags...)
+	objectFields, diags := stringListToSDK(ctx, plan.ObjectFields)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -300,20 +296,8 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 		IsEnabled:      plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.AddWebhook(webhook)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Webhook",
-			fmt.Sprintf("Could not create webhook %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Webhook",
-			fmt.Sprintf("Casdoor returned failure when creating webhook %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddWebhook(webhook)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating webhook %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -413,16 +397,12 @@ func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	var events, tokenFields, objectFields []string
-	if !plan.Events.IsNull() && !plan.Events.IsUnknown() {
-		resp.Diagnostics.Append(plan.Events.ElementsAs(ctx, &events, false)...)
-	}
-	if !plan.TokenFields.IsNull() && !plan.TokenFields.IsUnknown() {
-		resp.Diagnostics.Append(plan.TokenFields.ElementsAs(ctx, &tokenFields, false)...)
-	}
-	if !plan.ObjectFields.IsNull() && !plan.ObjectFields.IsUnknown() {
-		resp.Diagnostics.Append(plan.ObjectFields.ElementsAs(ctx, &objectFields, false)...)
-	}
+	events, diags := stringListToSDK(ctx, plan.Events)
+	resp.Diagnostics.Append(diags...)
+	tokenFields, diags := stringListToSDK(ctx, plan.TokenFields)
+	resp.Diagnostics.Append(diags...)
+	objectFields, diags := stringListToSDK(ctx, plan.ObjectFields)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -444,20 +424,8 @@ func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest
 		IsEnabled:      plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.UpdateWebhook(webhook)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Webhook",
-			fmt.Sprintf("Could not update webhook %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Webhook",
-			fmt.Sprintf("Casdoor returned failure when updating webhook %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateWebhook(webhook)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating webhook %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -478,20 +446,8 @@ func (r *WebhookResource) Delete(ctx context.Context, req resource.DeleteRequest
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteWebhook(webhook)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Webhook",
-			fmt.Sprintf("Could not delete webhook %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Webhook",
-			fmt.Sprintf("Casdoor returned failure when deleting webhook %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeleteWebhook(webhook)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting webhook %q", state.Name.ValueString())) {
 		return
 	}
 }

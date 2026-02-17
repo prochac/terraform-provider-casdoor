@@ -10,6 +10,7 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -1171,18 +1172,12 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	groups := make([]string, 0)
-	if !plan.Groups.IsNull() && !plan.Groups.IsUnknown() {
-		resp.Diagnostics.Append(plan.Groups.ElementsAs(ctx, &groups, false)...)
-	}
-	address := make([]string, 0)
-	if !plan.Address.IsNull() && !plan.Address.IsUnknown() {
-		resp.Diagnostics.Append(plan.Address.ElementsAs(ctx, &address, false)...)
-	}
-	recoveryCodes := make([]string, 0)
-	if !plan.RecoveryCodes.IsNull() && !plan.RecoveryCodes.IsUnknown() {
-		resp.Diagnostics.Append(plan.RecoveryCodes.ElementsAs(ctx, &recoveryCodes, false)...)
-	}
+	groups, diags := stringListToSDK(ctx, plan.Groups)
+	resp.Diagnostics.Append(diags...)
+	address, diags := stringListToSDK(ctx, plan.Address)
+	resp.Diagnostics.Append(diags...)
+	recoveryCodes, diags := stringListToSDK(ctx, plan.RecoveryCodes)
+	resp.Diagnostics.Append(diags...)
 	var properties map[string]string
 	if !plan.Properties.IsNull() && !plan.Properties.IsUnknown() {
 		properties = make(map[string]string)
@@ -1392,20 +1387,8 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		}
 	}
 
-	success, err := r.client.AddUser(user)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating User",
-			fmt.Sprintf("Could not create user %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating User",
-			fmt.Sprintf("Casdoor returned failure when creating user %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddUser(user)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating user %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -1479,15 +1462,12 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		plan.RegisterType = types.StringValue("")
 	}
 
-	if len(groups) == 0 {
-		plan.Groups = types.ListNull(types.StringType)
-	}
-	if len(address) == 0 {
-		plan.Address = types.ListNull(types.StringType)
-	}
-	if len(recoveryCodes) == 0 {
-		plan.RecoveryCodes = types.ListNull(types.StringType)
-	}
+	plan.Groups, diags = stringListFromSDK(ctx, groups)
+	resp.Diagnostics.Append(diags...)
+	plan.Address, diags = stringListFromSDK(ctx, address)
+	resp.Diagnostics.Append(diags...)
+	plan.RecoveryCodes, diags = stringListFromSDK(ctx, recoveryCodes)
+	resp.Diagnostics.Append(diags...)
 	if len(properties) == 0 {
 		plan.Properties = types.MapValueMust(types.StringType, map[string]attr.Value{})
 	}
@@ -1645,13 +1625,9 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	}
 
 	// Read address ([]string).
-	if len(user.Address) > 0 {
-		addressList, diags := types.ListValueFrom(ctx, types.StringType, user.Address)
-		resp.Diagnostics.Append(diags...)
-		state.Address = addressList
-	} else {
-		state.Address = types.ListNull(types.StringType)
-	}
+	var diags diag.Diagnostics
+	state.Address, diags = stringListFromSDK(ctx, user.Address)
+	resp.Diagnostics.Append(diags...)
 
 	// Read addresses ([]*Address).
 	if len(user.Addresses) > 0 {
@@ -1791,13 +1767,8 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	}
 
 	// Read recovery_codes.
-	if len(user.RecoveryCodes) > 0 {
-		rcList, diags := types.ListValueFrom(ctx, types.StringType, user.RecoveryCodes)
-		resp.Diagnostics.Append(diags...)
-		state.RecoveryCodes = rcList
-	} else {
-		state.RecoveryCodes = types.ListNull(types.StringType)
-	}
+	state.RecoveryCodes, diags = stringListFromSDK(ctx, user.RecoveryCodes)
+	resp.Diagnostics.Append(diags...)
 
 	// Read properties.
 	if len(user.Properties) > 0 {
@@ -1809,13 +1780,8 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	}
 
 	// Read groups.
-	if len(user.Groups) > 0 {
-		groups, diags := types.ListValueFrom(ctx, types.StringType, user.Groups)
-		resp.Diagnostics.Append(diags...)
-		state.Groups = groups
-	} else {
-		state.Groups = types.ListNull(types.StringType)
-	}
+	state.Groups, diags = stringListFromSDK(ctx, user.Groups)
+	resp.Diagnostics.Append(diags...)
 
 	if resp.Diagnostics.HasError() {
 		return
@@ -2064,20 +2030,8 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		}
 	}
 
-	success, err := r.client.UpdateUser(user)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating User",
-			fmt.Sprintf("Could not update user %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating User",
-			fmt.Sprintf("Casdoor returned failure when updating user %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateUser(user)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating user %q", plan.Name.ValueString())) {
 		return
 	}
 

@@ -201,12 +201,10 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	users := make([]string, 0)
-	if !plan.Users.IsNull() && !plan.Users.IsUnknown() {
-		resp.Diagnostics.Append(plan.Users.ElementsAs(ctx, &users, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
+	users, diags := stringListToSDK(ctx, plan.Users)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	createdTime := plan.CreatedTime.ValueString()
@@ -232,20 +230,8 @@ func (r *GroupResource) Create(ctx context.Context, req resource.CreateRequest, 
 		IsEnabled:    plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.AddGroup(group)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Group",
-			fmt.Sprintf("Could not create group %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Group",
-			fmt.Sprintf("Casdoor returned failure when creating group %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddGroup(group)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating group %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -341,12 +327,10 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	users := make([]string, 0)
-	if !plan.Users.IsNull() && !plan.Users.IsUnknown() {
-		resp.Diagnostics.Append(plan.Users.ElementsAs(ctx, &users, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
+	users, diags := stringListToSDK(ctx, plan.Users)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	group := &casdoorsdk.Group{
@@ -364,20 +348,8 @@ func (r *GroupResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		IsEnabled:    plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.UpdateGroup(group)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Group",
-			fmt.Sprintf("Could not update group %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Group",
-			fmt.Sprintf("Casdoor returned failure when updating group %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateGroup(group)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating group %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -427,20 +399,8 @@ func (r *GroupResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteGroup(group)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Group",
-			fmt.Sprintf("Could not delete group %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Group",
-			fmt.Sprintf("Casdoor returned failure when deleting group %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeleteGroup(group)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting group %q", state.Name.ValueString())) {
 		return
 	}
 }

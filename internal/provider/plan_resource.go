@@ -183,13 +183,10 @@ func (r *PlanResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	var paymentProviders, options []string
-	if !plan.PaymentProviders.IsNull() && !plan.PaymentProviders.IsUnknown() {
-		resp.Diagnostics.Append(plan.PaymentProviders.ElementsAs(ctx, &paymentProviders, false)...)
-	}
-	if !plan.Options.IsNull() && !plan.Options.IsUnknown() {
-		resp.Diagnostics.Append(plan.Options.ElementsAs(ctx, &options, false)...)
-	}
+	paymentProviders, diags := stringListToSDK(ctx, plan.PaymentProviders)
+	resp.Diagnostics.Append(diags...)
+	options, diags := stringListToSDK(ctx, plan.Options)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -215,20 +212,8 @@ func (r *PlanResource) Create(ctx context.Context, req resource.CreateRequest, r
 		Options:          options,
 	}
 
-	success, err := r.client.AddPlan(planObj)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Plan",
-			fmt.Sprintf("Could not create plan %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Plan",
-			fmt.Sprintf("Casdoor returned failure when creating plan %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddPlan(planObj)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating plan %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -313,13 +298,10 @@ func (r *PlanResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	var paymentProviders, options []string
-	if !plan.PaymentProviders.IsNull() && !plan.PaymentProviders.IsUnknown() {
-		resp.Diagnostics.Append(plan.PaymentProviders.ElementsAs(ctx, &paymentProviders, false)...)
-	}
-	if !plan.Options.IsNull() && !plan.Options.IsUnknown() {
-		resp.Diagnostics.Append(plan.Options.ElementsAs(ctx, &options, false)...)
-	}
+	paymentProviders, diags := stringListToSDK(ctx, plan.PaymentProviders)
+	resp.Diagnostics.Append(diags...)
+	options, diags := stringListToSDK(ctx, plan.Options)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -340,20 +322,8 @@ func (r *PlanResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		Options:          options,
 	}
 
-	success, err := r.client.UpdatePlan(planObj)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Plan",
-			fmt.Sprintf("Could not update plan %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Plan",
-			fmt.Sprintf("Casdoor returned failure when updating plan %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdatePlan(planObj)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating plan %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -374,20 +344,8 @@ func (r *PlanResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeletePlan(planObj)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Plan",
-			fmt.Sprintf("Could not delete plan %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Plan",
-			fmt.Sprintf("Casdoor returned failure when deleting plan %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeletePlan(planObj)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting plan %q", state.Name.ValueString())) {
 		return
 	}
 }

@@ -234,20 +234,8 @@ func (r *TokenResource) Create(ctx context.Context, req resource.CreateRequest, 
 		Resource:      plan.Resource.ValueString(),
 	}
 
-	success, err := r.client.AddToken(token)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Token",
-			fmt.Sprintf("Could not create token %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Token",
-			fmt.Sprintf("Casdoor returned failure when creating token %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddToken(token)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating token %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -345,20 +333,8 @@ func (r *TokenResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		Resource:      plan.Resource.ValueString(),
 	}
 
-	success, err := r.client.UpdateToken(token)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Token",
-			fmt.Sprintf("Could not update token %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Token",
-			fmt.Sprintf("Casdoor returned failure when updating token %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateToken(token)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating token %q", plan.Name.ValueString())) {
 		return
 	}
 

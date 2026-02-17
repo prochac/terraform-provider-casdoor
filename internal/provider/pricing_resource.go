@@ -178,12 +178,10 @@ func (r *PricingResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	plans := make([]string, 0)
-	if !plan.Plans.IsNull() && !plan.Plans.IsUnknown() {
-		resp.Diagnostics.Append(plan.Plans.ElementsAs(ctx, &plans, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
+	plans, diags := stringListToSDK(ctx, plan.Plans)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	createdTime := plan.CreatedTime.ValueString()
@@ -207,20 +205,8 @@ func (r *PricingResource) Create(ctx context.Context, req resource.CreateRequest
 		State:         plan.State.ValueString(),
 	}
 
-	success, err := r.client.AddPricing(pricing)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Pricing",
-			fmt.Sprintf("Could not create pricing %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Pricing",
-			fmt.Sprintf("Casdoor returned failure when creating pricing %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddPricing(pricing)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating pricing %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -300,12 +286,10 @@ func (r *PricingResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	plans := make([]string, 0)
-	if !plan.Plans.IsNull() && !plan.Plans.IsUnknown() {
-		resp.Diagnostics.Append(plan.Plans.ElementsAs(ctx, &plans, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
+	plans, diags := stringListToSDK(ctx, plan.Plans)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	pricing := &casdoorsdk.Pricing{
@@ -324,20 +308,8 @@ func (r *PricingResource) Update(ctx context.Context, req resource.UpdateRequest
 		State:         plan.State.ValueString(),
 	}
 
-	success, err := r.client.UpdatePricing(pricing)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Pricing",
-			fmt.Sprintf("Could not update pricing %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Pricing",
-			fmt.Sprintf("Casdoor returned failure when updating pricing %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdatePricing(pricing)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating pricing %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -358,20 +330,8 @@ func (r *PricingResource) Delete(ctx context.Context, req resource.DeleteRequest
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeletePricing(pricing)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Pricing",
-			fmt.Sprintf("Could not delete pricing %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Pricing",
-			fmt.Sprintf("Casdoor returned failure when deleting pricing %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeletePricing(pricing)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting pricing %q", state.Name.ValueString())) {
 		return
 	}
 }

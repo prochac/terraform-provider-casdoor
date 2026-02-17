@@ -192,20 +192,8 @@ func (r *ModelResource) Create(ctx context.Context, req resource.CreateRequest, 
 		IsEnabled:    plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.AddModel(model)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Model",
-			fmt.Sprintf("Could not create model %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Model",
-			fmt.Sprintf("Casdoor returned failure when creating model %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddModel(model)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating model %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -344,20 +332,8 @@ func (r *ModelResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteModel(model)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Model",
-			fmt.Sprintf("Could not delete model %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Model",
-			fmt.Sprintf("Casdoor returned failure when deleting model %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeleteModel(model)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting model %q", state.Name.ValueString())) {
 		return
 	}
 }

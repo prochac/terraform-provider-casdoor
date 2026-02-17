@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -148,20 +149,14 @@ func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	var users, groups, roles, domains []string
-
-	if !plan.Users.IsNull() {
-		resp.Diagnostics.Append(plan.Users.ElementsAs(ctx, &users, false)...)
-	}
-	if !plan.Groups.IsNull() {
-		resp.Diagnostics.Append(plan.Groups.ElementsAs(ctx, &groups, false)...)
-	}
-	if !plan.Roles.IsNull() {
-		resp.Diagnostics.Append(plan.Roles.ElementsAs(ctx, &roles, false)...)
-	}
-	if !plan.Domains.IsNull() {
-		resp.Diagnostics.Append(plan.Domains.ElementsAs(ctx, &domains, false)...)
-	}
+	users, diags := stringListToSDK(ctx, plan.Users)
+	resp.Diagnostics.Append(diags...)
+	groups, diags := stringListToSDK(ctx, plan.Groups)
+	resp.Diagnostics.Append(diags...)
+	roles, diags := stringListToSDK(ctx, plan.Roles)
+	resp.Diagnostics.Append(diags...)
+	domains, diags := stringListToSDK(ctx, plan.Domains)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -184,20 +179,8 @@ func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, r
 		IsEnabled:   plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.AddRole(role)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Role",
-			fmt.Sprintf("Could not create role %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Role",
-			fmt.Sprintf("Casdoor returned failure when creating role %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddRole(role)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating role %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -216,18 +199,14 @@ func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Set list values to null if empty.
-	if len(users) == 0 {
-		plan.Users = types.ListNull(types.StringType)
-	}
-	if len(groups) == 0 {
-		plan.Groups = types.ListNull(types.StringType)
-	}
-	if len(roles) == 0 {
-		plan.Roles = types.ListNull(types.StringType)
-	}
-	if len(domains) == 0 {
-		plan.Domains = types.ListNull(types.StringType)
-	}
+	plan.Users, diags = stringListFromSDK(ctx, users)
+	resp.Diagnostics.Append(diags...)
+	plan.Groups, diags = stringListFromSDK(ctx, groups)
+	resp.Diagnostics.Append(diags...)
+	plan.Roles, diags = stringListFromSDK(ctx, roles)
+	resp.Diagnostics.Append(diags...)
+	plan.Domains, diags = stringListFromSDK(ctx, domains)
+	resp.Diagnostics.Append(diags...)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -263,38 +242,16 @@ func (r *RoleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.CreatedTime = types.StringValue(role.CreatedTime)
 	state.IsEnabled = types.BoolValue(role.IsEnabled)
 
-	if len(role.Users) > 0 {
-		users, diags := types.ListValueFrom(ctx, types.StringType, role.Users)
-		resp.Diagnostics.Append(diags...)
-		state.Users = users
-	} else {
-		state.Users = types.ListNull(types.StringType)
-	}
+	var diags diag.Diagnostics
 
-	if len(role.Groups) > 0 {
-		groups, diags := types.ListValueFrom(ctx, types.StringType, role.Groups)
-		resp.Diagnostics.Append(diags...)
-		state.Groups = groups
-	} else {
-		state.Groups = types.ListNull(types.StringType)
-	}
-
-	if len(role.Roles) > 0 {
-		roles, diags := types.ListValueFrom(ctx, types.StringType, role.Roles)
-		resp.Diagnostics.Append(diags...)
-		state.Roles = roles
-	} else {
-		state.Roles = types.ListNull(types.StringType)
-	}
-
-	if len(role.Domains) > 0 {
-		domains, diags := types.ListValueFrom(ctx, types.StringType, role.Domains)
-		resp.Diagnostics.Append(diags...)
-		state.Domains = domains
-	} else {
-		state.Domains = types.ListNull(types.StringType)
-	}
-
+	state.Users, diags = stringListFromSDK(ctx, role.Users)
+	resp.Diagnostics.Append(diags...)
+	state.Groups, diags = stringListFromSDK(ctx, role.Groups)
+	resp.Diagnostics.Append(diags...)
+	state.Roles, diags = stringListFromSDK(ctx, role.Roles)
+	resp.Diagnostics.Append(diags...)
+	state.Domains, diags = stringListFromSDK(ctx, role.Domains)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -310,20 +267,14 @@ func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	var users, groups, roles, domains []string
-
-	if !plan.Users.IsNull() {
-		resp.Diagnostics.Append(plan.Users.ElementsAs(ctx, &users, false)...)
-	}
-	if !plan.Groups.IsNull() {
-		resp.Diagnostics.Append(plan.Groups.ElementsAs(ctx, &groups, false)...)
-	}
-	if !plan.Roles.IsNull() {
-		resp.Diagnostics.Append(plan.Roles.ElementsAs(ctx, &roles, false)...)
-	}
-	if !plan.Domains.IsNull() {
-		resp.Diagnostics.Append(plan.Domains.ElementsAs(ctx, &domains, false)...)
-	}
+	users, diags := stringListToSDK(ctx, plan.Users)
+	resp.Diagnostics.Append(diags...)
+	groups, diags := stringListToSDK(ctx, plan.Groups)
+	resp.Diagnostics.Append(diags...)
+	roles, diags := stringListToSDK(ctx, plan.Roles)
+	resp.Diagnostics.Append(diags...)
+	domains, diags := stringListToSDK(ctx, plan.Domains)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -341,36 +292,20 @@ func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		IsEnabled:   plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.UpdateRole(role)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Role",
-			fmt.Sprintf("Could not update role %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Role",
-			fmt.Sprintf("Casdoor returned failure when updating role %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateRole(role)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating role %q", plan.Name.ValueString())) {
 		return
 	}
 
 	// Set list values to null if empty.
-	if len(users) == 0 {
-		plan.Users = types.ListNull(types.StringType)
-	}
-	if len(groups) == 0 {
-		plan.Groups = types.ListNull(types.StringType)
-	}
-	if len(roles) == 0 {
-		plan.Roles = types.ListNull(types.StringType)
-	}
-	if len(domains) == 0 {
-		plan.Domains = types.ListNull(types.StringType)
-	}
+	plan.Users, diags = stringListFromSDK(ctx, users)
+	resp.Diagnostics.Append(diags...)
+	plan.Groups, diags = stringListFromSDK(ctx, groups)
+	resp.Diagnostics.Append(diags...)
+	plan.Roles, diags = stringListFromSDK(ctx, roles)
+	resp.Diagnostics.Append(diags...)
+	plan.Domains, diags = stringListFromSDK(ctx, domains)
+	resp.Diagnostics.Append(diags...)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -389,20 +324,8 @@ func (r *RoleResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteRole(role)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Role",
-			fmt.Sprintf("Could not delete role %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Role",
-			fmt.Sprintf("Casdoor returned failure when deleting role %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeleteRole(role)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting role %q", state.Name.ValueString())) {
 		return
 	}
 }

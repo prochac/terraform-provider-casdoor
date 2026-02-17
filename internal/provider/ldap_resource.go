@@ -9,6 +9,7 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -193,13 +194,10 @@ func (r *LdapResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	// Convert filter_fields list to Go slice.
-	filterFields := make([]string, 0)
-	if !plan.FilterFields.IsNull() {
-		resp.Diagnostics.Append(plan.FilterFields.ElementsAs(ctx, &filterFields, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
+	filterFields, diags := stringListToSDK(ctx, plan.FilterFields)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	// Convert custom_attributes map to Go map.
@@ -237,20 +235,8 @@ func (r *LdapResource) Create(ctx context.Context, req resource.CreateRequest, r
 		AutoSync:            int(plan.AutoSync.ValueInt64()),
 	}
 
-	success, err := r.client.AddLdap(ldap)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating LDAP",
-			fmt.Sprintf("Could not create LDAP %q: %s", plan.Id.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating LDAP",
-			fmt.Sprintf("Casdoor returned failure when creating LDAP %q", plan.Id.ValueString()),
-		)
+	ok, err := r.client.AddLdap(ldap)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating LDAP %q", plan.Id.ValueString())) {
 		return
 	}
 
@@ -270,9 +256,8 @@ func (r *LdapResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Set list values to null if empty to match plan.
-	if len(filterFields) == 0 {
-		plan.FilterFields = types.ListNull(types.StringType)
-	}
+	plan.FilterFields, diags = stringListFromSDK(ctx, filterFields)
+	resp.Diagnostics.Append(diags...)
 	if len(customAttributes) == 0 {
 		plan.CustomAttributes = types.MapNull(types.StringType)
 	}
@@ -327,14 +312,9 @@ func (r *LdapResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.AutoSync = types.Int64Value(int64(ldap.AutoSync))
 	state.LastSync = types.StringValue(ldap.LastSync)
 
-	// Convert filter_fields to list type.
-	if len(ldap.FilterFields) > 0 {
-		filterFields, diags := types.ListValueFrom(ctx, types.StringType, ldap.FilterFields)
-		resp.Diagnostics.Append(diags...)
-		state.FilterFields = filterFields
-	} else {
-		state.FilterFields = types.ListNull(types.StringType)
-	}
+	var diags diag.Diagnostics
+	state.FilterFields, diags = stringListFromSDK(ctx, ldap.FilterFields)
+	resp.Diagnostics.Append(diags...)
 
 	// Convert custom_attributes to map type.
 	if len(ldap.CustomAttributes) > 0 {
@@ -364,13 +344,10 @@ func (r *LdapResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	// Convert filter_fields list to Go slice.
-	filterFields := make([]string, 0)
-	if !plan.FilterFields.IsNull() {
-		resp.Diagnostics.Append(plan.FilterFields.ElementsAs(ctx, &filterFields, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
+	filterFields, diags := stringListToSDK(ctx, plan.FilterFields)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	// Convert custom_attributes map to Go map.
@@ -404,27 +381,14 @@ func (r *LdapResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		LastSync:            plan.LastSync.ValueString(),
 	}
 
-	success, err := r.client.UpdateLdap(ldap)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating LDAP",
-			fmt.Sprintf("Could not update LDAP %q: %s", plan.Id.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating LDAP",
-			fmt.Sprintf("Casdoor returned failure when updating LDAP %q", plan.Id.ValueString()),
-		)
+	ok, err := r.client.UpdateLdap(ldap)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating LDAP %q", plan.Id.ValueString())) {
 		return
 	}
 
 	// Set list values to null if empty to match plan.
-	if len(filterFields) == 0 {
-		plan.FilterFields = types.ListNull(types.StringType)
-	}
+	plan.FilterFields, diags = stringListFromSDK(ctx, filterFields)
+	resp.Diagnostics.Append(diags...)
 	if len(customAttributes) == 0 {
 		plan.CustomAttributes = types.MapNull(types.StringType)
 	}
@@ -445,20 +409,8 @@ func (r *LdapResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		Owner: state.Owner.ValueString(),
 	}
 
-	success, err := r.client.DeleteLdap(ldap)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting LDAP",
-			fmt.Sprintf("Could not delete LDAP %q: %s", state.Id.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting LDAP",
-			fmt.Sprintf("Casdoor returned failure when deleting LDAP %q", state.Id.ValueString()),
-		)
+	ok, err := r.client.DeleteLdap(ldap)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting LDAP %q", state.Id.ValueString())) {
 		return
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -506,40 +507,24 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	// Convert list types to Go slices.
-	// Use empty slices (not nil) so JSON serializes as [] instead of null.
-	passwordOptions := make([]string, 0)
-	countryCodes := make([]string, 0)
-	userTypes := make([]string, 0)
-	tags := make([]string, 0)
-	languages := make([]string, 0)
-	navItems := make([]string, 0)
-	userNavItems := make([]string, 0)
-	widgetItems := make([]string, 0)
+	var diags diag.Diagnostics
 
-	if !plan.PasswordOptions.IsNull() {
-		resp.Diagnostics.Append(plan.PasswordOptions.ElementsAs(ctx, &passwordOptions, false)...)
-	}
-	if !plan.CountryCodes.IsNull() {
-		resp.Diagnostics.Append(plan.CountryCodes.ElementsAs(ctx, &countryCodes, false)...)
-	}
-	if !plan.UserTypes.IsNull() {
-		resp.Diagnostics.Append(plan.UserTypes.ElementsAs(ctx, &userTypes, false)...)
-	}
-	if !plan.Tags.IsNull() {
-		resp.Diagnostics.Append(plan.Tags.ElementsAs(ctx, &tags, false)...)
-	}
-	if !plan.Languages.IsNull() {
-		resp.Diagnostics.Append(plan.Languages.ElementsAs(ctx, &languages, false)...)
-	}
-	if !plan.NavItems.IsNull() {
-		resp.Diagnostics.Append(plan.NavItems.ElementsAs(ctx, &navItems, false)...)
-	}
-	if !plan.UserNavItems.IsNull() {
-		resp.Diagnostics.Append(plan.UserNavItems.ElementsAs(ctx, &userNavItems, false)...)
-	}
-	if !plan.WidgetItems.IsNull() {
-		resp.Diagnostics.Append(plan.WidgetItems.ElementsAs(ctx, &widgetItems, false)...)
-	}
+	passwordOptions, diags := stringListToSDK(ctx, plan.PasswordOptions)
+	resp.Diagnostics.Append(diags...)
+	countryCodes, diags := stringListToSDK(ctx, plan.CountryCodes)
+	resp.Diagnostics.Append(diags...)
+	userTypes, diags := stringListToSDK(ctx, plan.UserTypes)
+	resp.Diagnostics.Append(diags...)
+	tags, diags := stringListToSDK(ctx, plan.Tags)
+	resp.Diagnostics.Append(diags...)
+	languages, diags := stringListToSDK(ctx, plan.Languages)
+	resp.Diagnostics.Append(diags...)
+	navItems, diags := stringListToSDK(ctx, plan.NavItems)
+	resp.Diagnostics.Append(diags...)
+	userNavItems, diags := stringListToSDK(ctx, plan.UserNavItems)
+	resp.Diagnostics.Append(diags...)
+	widgetItems, diags := stringListToSDK(ctx, plan.WidgetItems)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -647,20 +632,8 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 		DcrPolicy:              plan.DcrPolicy.ValueString(),
 	}
 
-	success, err := r.client.AddOrganization(org)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Organization",
-			fmt.Sprintf("Could not create organization %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Organization",
-			fmt.Sprintf("Casdoor returned failure when creating organization %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddOrganization(org)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating organization %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -680,30 +653,22 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	// Set list values to null if empty to match plan.
-	if len(passwordOptions) == 0 {
-		plan.PasswordOptions = types.ListNull(types.StringType)
-	}
-	if len(countryCodes) == 0 {
-		plan.CountryCodes = types.ListNull(types.StringType)
-	}
-	if len(userTypes) == 0 {
-		plan.UserTypes = types.ListNull(types.StringType)
-	}
-	if len(tags) == 0 {
-		plan.Tags = types.ListNull(types.StringType)
-	}
-	if len(languages) == 0 {
-		plan.Languages = types.ListNull(types.StringType)
-	}
-	if len(navItems) == 0 {
-		plan.NavItems = types.ListNull(types.StringType)
-	}
-	if len(userNavItems) == 0 {
-		plan.UserNavItems = types.ListNull(types.StringType)
-	}
-	if len(widgetItems) == 0 {
-		plan.WidgetItems = types.ListNull(types.StringType)
-	}
+	plan.PasswordOptions, diags = stringListFromSDK(ctx, passwordOptions)
+	resp.Diagnostics.Append(diags...)
+	plan.CountryCodes, diags = stringListFromSDK(ctx, countryCodes)
+	resp.Diagnostics.Append(diags...)
+	plan.UserTypes, diags = stringListFromSDK(ctx, userTypes)
+	resp.Diagnostics.Append(diags...)
+	plan.Tags, diags = stringListFromSDK(ctx, tags)
+	resp.Diagnostics.Append(diags...)
+	plan.Languages, diags = stringListFromSDK(ctx, languages)
+	resp.Diagnostics.Append(diags...)
+	plan.NavItems, diags = stringListFromSDK(ctx, navItems)
+	resp.Diagnostics.Append(diags...)
+	plan.UserNavItems, diags = stringListFromSDK(ctx, userNavItems)
+	resp.Diagnostics.Append(diags...)
+	plan.WidgetItems, diags = stringListFromSDK(ctx, widgetItems)
+	resp.Diagnostics.Append(diags...)
 	if len(mfaItems) == 0 {
 		plan.MfaItems = types.ListNull(types.ObjectType{AttrTypes: MfaItemAttrTypes()})
 	}
@@ -798,69 +763,24 @@ func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadReques
 	state.DcrPolicy = types.StringValue(org.DcrPolicy)
 
 	// Convert string slices to list types.
-	if len(org.PasswordOptions) > 0 {
-		passwordOptions, diags := types.ListValueFrom(ctx, types.StringType, org.PasswordOptions)
-		resp.Diagnostics.Append(diags...)
-		state.PasswordOptions = passwordOptions
-	} else {
-		state.PasswordOptions = types.ListNull(types.StringType)
-	}
+	var diags diag.Diagnostics
 
-	if len(org.CountryCodes) > 0 {
-		countryCodes, diags := types.ListValueFrom(ctx, types.StringType, org.CountryCodes)
-		resp.Diagnostics.Append(diags...)
-		state.CountryCodes = countryCodes
-	} else {
-		state.CountryCodes = types.ListNull(types.StringType)
-	}
-
-	if len(org.UserTypes) > 0 {
-		userTypes, diags := types.ListValueFrom(ctx, types.StringType, org.UserTypes)
-		resp.Diagnostics.Append(diags...)
-		state.UserTypes = userTypes
-	} else {
-		state.UserTypes = types.ListNull(types.StringType)
-	}
-
-	if len(org.Tags) > 0 {
-		tags, diags := types.ListValueFrom(ctx, types.StringType, org.Tags)
-		resp.Diagnostics.Append(diags...)
-		state.Tags = tags
-	} else {
-		state.Tags = types.ListNull(types.StringType)
-	}
-
-	if len(org.Languages) > 0 {
-		languages, diags := types.ListValueFrom(ctx, types.StringType, org.Languages)
-		resp.Diagnostics.Append(diags...)
-		state.Languages = languages
-	} else {
-		state.Languages = types.ListNull(types.StringType)
-	}
-
-	if len(org.NavItems) > 0 {
-		navItems, diags := types.ListValueFrom(ctx, types.StringType, org.NavItems)
-		resp.Diagnostics.Append(diags...)
-		state.NavItems = navItems
-	} else {
-		state.NavItems = types.ListNull(types.StringType)
-	}
-
-	if len(org.UserNavItems) > 0 {
-		userNavItems, diags := types.ListValueFrom(ctx, types.StringType, org.UserNavItems)
-		resp.Diagnostics.Append(diags...)
-		state.UserNavItems = userNavItems
-	} else {
-		state.UserNavItems = types.ListNull(types.StringType)
-	}
-
-	if len(org.WidgetItems) > 0 {
-		widgetItems, diags := types.ListValueFrom(ctx, types.StringType, org.WidgetItems)
-		resp.Diagnostics.Append(diags...)
-		state.WidgetItems = widgetItems
-	} else {
-		state.WidgetItems = types.ListNull(types.StringType)
-	}
+	state.PasswordOptions, diags = stringListFromSDK(ctx, org.PasswordOptions)
+	resp.Diagnostics.Append(diags...)
+	state.CountryCodes, diags = stringListFromSDK(ctx, org.CountryCodes)
+	resp.Diagnostics.Append(diags...)
+	state.UserTypes, diags = stringListFromSDK(ctx, org.UserTypes)
+	resp.Diagnostics.Append(diags...)
+	state.Tags, diags = stringListFromSDK(ctx, org.Tags)
+	resp.Diagnostics.Append(diags...)
+	state.Languages, diags = stringListFromSDK(ctx, org.Languages)
+	resp.Diagnostics.Append(diags...)
+	state.NavItems, diags = stringListFromSDK(ctx, org.NavItems)
+	resp.Diagnostics.Append(diags...)
+	state.UserNavItems, diags = stringListFromSDK(ctx, org.UserNavItems)
+	resp.Diagnostics.Append(diags...)
+	state.WidgetItems, diags = stringListFromSDK(ctx, org.WidgetItems)
+	resp.Diagnostics.Append(diags...)
 
 	// Convert ThemeData to object type.
 	if org.ThemeData != nil {
@@ -932,40 +852,24 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 
 	// Convert list types to Go slices.
-	// Use empty slices (not nil) so JSON serializes as [] instead of null.
-	passwordOptions := make([]string, 0)
-	countryCodes := make([]string, 0)
-	userTypes := make([]string, 0)
-	tags := make([]string, 0)
-	languages := make([]string, 0)
-	navItems := make([]string, 0)
-	userNavItems := make([]string, 0)
-	widgetItems := make([]string, 0)
+	var diags diag.Diagnostics
 
-	if !plan.PasswordOptions.IsNull() {
-		resp.Diagnostics.Append(plan.PasswordOptions.ElementsAs(ctx, &passwordOptions, false)...)
-	}
-	if !plan.CountryCodes.IsNull() {
-		resp.Diagnostics.Append(plan.CountryCodes.ElementsAs(ctx, &countryCodes, false)...)
-	}
-	if !plan.UserTypes.IsNull() {
-		resp.Diagnostics.Append(plan.UserTypes.ElementsAs(ctx, &userTypes, false)...)
-	}
-	if !plan.Tags.IsNull() {
-		resp.Diagnostics.Append(plan.Tags.ElementsAs(ctx, &tags, false)...)
-	}
-	if !plan.Languages.IsNull() {
-		resp.Diagnostics.Append(plan.Languages.ElementsAs(ctx, &languages, false)...)
-	}
-	if !plan.NavItems.IsNull() {
-		resp.Diagnostics.Append(plan.NavItems.ElementsAs(ctx, &navItems, false)...)
-	}
-	if !plan.UserNavItems.IsNull() {
-		resp.Diagnostics.Append(plan.UserNavItems.ElementsAs(ctx, &userNavItems, false)...)
-	}
-	if !plan.WidgetItems.IsNull() {
-		resp.Diagnostics.Append(plan.WidgetItems.ElementsAs(ctx, &widgetItems, false)...)
-	}
+	passwordOptions, diags := stringListToSDK(ctx, plan.PasswordOptions)
+	resp.Diagnostics.Append(diags...)
+	countryCodes, diags := stringListToSDK(ctx, plan.CountryCodes)
+	resp.Diagnostics.Append(diags...)
+	userTypes, diags := stringListToSDK(ctx, plan.UserTypes)
+	resp.Diagnostics.Append(diags...)
+	tags, diags := stringListToSDK(ctx, plan.Tags)
+	resp.Diagnostics.Append(diags...)
+	languages, diags := stringListToSDK(ctx, plan.Languages)
+	resp.Diagnostics.Append(diags...)
+	navItems, diags := stringListToSDK(ctx, plan.NavItems)
+	resp.Diagnostics.Append(diags...)
+	userNavItems, diags := stringListToSDK(ctx, plan.UserNavItems)
+	resp.Diagnostics.Append(diags...)
+	widgetItems, diags := stringListToSDK(ctx, plan.WidgetItems)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -1068,48 +972,28 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 		DcrPolicy:              plan.DcrPolicy.ValueString(),
 	}
 
-	success, err := r.client.UpdateOrganization(org)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Organization",
-			fmt.Sprintf("Could not update organization %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Organization",
-			fmt.Sprintf("Casdoor returned failure when updating organization %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateOrganization(org)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating organization %q", plan.Name.ValueString())) {
 		return
 	}
 
 	// Set list values to null if empty to match plan.
-	if len(passwordOptions) == 0 {
-		plan.PasswordOptions = types.ListNull(types.StringType)
-	}
-	if len(countryCodes) == 0 {
-		plan.CountryCodes = types.ListNull(types.StringType)
-	}
-	if len(userTypes) == 0 {
-		plan.UserTypes = types.ListNull(types.StringType)
-	}
-	if len(tags) == 0 {
-		plan.Tags = types.ListNull(types.StringType)
-	}
-	if len(languages) == 0 {
-		plan.Languages = types.ListNull(types.StringType)
-	}
-	if len(navItems) == 0 {
-		plan.NavItems = types.ListNull(types.StringType)
-	}
-	if len(userNavItems) == 0 {
-		plan.UserNavItems = types.ListNull(types.StringType)
-	}
-	if len(widgetItems) == 0 {
-		plan.WidgetItems = types.ListNull(types.StringType)
-	}
+	plan.PasswordOptions, diags = stringListFromSDK(ctx, passwordOptions)
+	resp.Diagnostics.Append(diags...)
+	plan.CountryCodes, diags = stringListFromSDK(ctx, countryCodes)
+	resp.Diagnostics.Append(diags...)
+	plan.UserTypes, diags = stringListFromSDK(ctx, userTypes)
+	resp.Diagnostics.Append(diags...)
+	plan.Tags, diags = stringListFromSDK(ctx, tags)
+	resp.Diagnostics.Append(diags...)
+	plan.Languages, diags = stringListFromSDK(ctx, languages)
+	resp.Diagnostics.Append(diags...)
+	plan.NavItems, diags = stringListFromSDK(ctx, navItems)
+	resp.Diagnostics.Append(diags...)
+	plan.UserNavItems, diags = stringListFromSDK(ctx, userNavItems)
+	resp.Diagnostics.Append(diags...)
+	plan.WidgetItems, diags = stringListFromSDK(ctx, widgetItems)
+	resp.Diagnostics.Append(diags...)
 	if len(mfaItems) == 0 {
 		plan.MfaItems = types.ListNull(types.ObjectType{AttrTypes: MfaItemAttrTypes()})
 	}
@@ -1135,20 +1019,8 @@ func (r *OrganizationResource) Delete(ctx context.Context, req resource.DeleteRe
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteOrganization(org)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Organization",
-			fmt.Sprintf("Could not delete organization %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Organization",
-			fmt.Sprintf("Casdoor returned failure when deleting organization %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeleteOrganization(org)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting organization %q", state.Name.ValueString())) {
 		return
 	}
 }

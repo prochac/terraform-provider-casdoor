@@ -219,12 +219,10 @@ func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	var providers []string
-	if !plan.Providers.IsNull() && !plan.Providers.IsUnknown() {
-		resp.Diagnostics.Append(plan.Providers.ElementsAs(ctx, &providers, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
+	providers, diags := stringListToSDK(ctx, plan.Providers)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	rechargeOptions := make([]float64, 0)
@@ -261,20 +259,8 @@ func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest
 		State:                 plan.State.ValueString(),
 	}
 
-	success, err := r.client.AddProduct(product)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Product",
-			fmt.Sprintf("Could not create product %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Product",
-			fmt.Sprintf("Casdoor returned failure when creating product %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddProduct(product)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating product %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -363,12 +349,10 @@ func (r *ProductResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	var providers []string
-	if !plan.Providers.IsNull() && !plan.Providers.IsUnknown() {
-		resp.Diagnostics.Append(plan.Providers.ElementsAs(ctx, &providers, false)...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
+	providers, diags := stringListToSDK(ctx, plan.Providers)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	rechargeOptions := make([]float64, 0)
@@ -400,20 +384,8 @@ func (r *ProductResource) Update(ctx context.Context, req resource.UpdateRequest
 		State:                 plan.State.ValueString(),
 	}
 
-	success, err := r.client.UpdateProduct(product)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Product",
-			fmt.Sprintf("Could not update product %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Product",
-			fmt.Sprintf("Casdoor returned failure when updating product %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateProduct(product)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating product %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -461,20 +433,8 @@ func (r *ProductResource) Delete(ctx context.Context, req resource.DeleteRequest
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteProduct(product)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Product",
-			fmt.Sprintf("Could not delete product %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Product",
-			fmt.Sprintf("Casdoor returned failure when deleting product %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeleteProduct(product)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting product %q", state.Name.ValueString())) {
 		return
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -1088,24 +1089,14 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Convert list types to Go slices.
-	// Use empty slices (not nil) so JSON serializes as [] instead of null.
-	redirectURIs := make([]string, 0)
-	grantTypes := make([]string, 0)
-	tokenFields := make([]string, 0)
-	tags := make([]string, 0)
-
-	if !plan.RedirectURIs.IsNull() && !plan.RedirectURIs.IsUnknown() {
-		resp.Diagnostics.Append(plan.RedirectURIs.ElementsAs(ctx, &redirectURIs, false)...)
-	}
-	if !plan.GrantTypes.IsNull() && !plan.GrantTypes.IsUnknown() {
-		resp.Diagnostics.Append(plan.GrantTypes.ElementsAs(ctx, &grantTypes, false)...)
-	}
-	if !plan.TokenFields.IsNull() && !plan.TokenFields.IsUnknown() {
-		resp.Diagnostics.Append(plan.TokenFields.ElementsAs(ctx, &tokenFields, false)...)
-	}
-	if !plan.Tags.IsNull() && !plan.Tags.IsUnknown() {
-		resp.Diagnostics.Append(plan.Tags.ElementsAs(ctx, &tags, false)...)
-	}
+	redirectURIs, d := stringListToSDK(ctx, plan.RedirectURIs)
+	resp.Diagnostics.Append(d...)
+	grantTypes, d := stringListToSDK(ctx, plan.GrantTypes)
+	resp.Diagnostics.Append(d...)
+	tokenFields, d := stringListToSDK(ctx, plan.TokenFields)
+	resp.Diagnostics.Append(d...)
+	tags, d := stringListToSDK(ctx, plan.Tags)
+	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -1278,10 +1269,8 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	// Convert other domains
-	otherDomains := make([]string, 0)
-	if !plan.OtherDomains.IsNull() && !plan.OtherDomains.IsUnknown() {
-		resp.Diagnostics.Append(plan.OtherDomains.ElementsAs(ctx, &otherDomains, false)...)
-	}
+	otherDomains, d := stringListToSDK(ctx, plan.OtherDomains)
+	resp.Diagnostics.Append(d...)
 
 	if resp.Diagnostics.HasError() {
 		return
@@ -1372,20 +1361,8 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		SslCert:                      plan.SslCert.ValueString(),
 	}
 
-	success, err := r.client.AddApplication(app)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Application",
-			fmt.Sprintf("Could not create application %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Application",
-			fmt.Sprintf("Casdoor returned failure when creating application %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddApplication(app)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating application %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -1421,46 +1398,26 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 
 	// RedirectURIs
 	if plan.RedirectURIs.IsUnknown() {
-		if len(createdApp.RedirectUris) > 0 {
-			uriList, diags := types.ListValueFrom(ctx, types.StringType, createdApp.RedirectUris)
-			resp.Diagnostics.Append(diags...)
-			plan.RedirectURIs = uriList
-		} else {
-			plan.RedirectURIs = types.ListNull(types.StringType)
-		}
+		plan.RedirectURIs, d = stringListFromSDK(ctx, createdApp.RedirectUris)
+		resp.Diagnostics.Append(d...)
 	}
 
 	// GrantTypes
 	if plan.GrantTypes.IsUnknown() {
-		if len(createdApp.GrantTypes) > 0 {
-			gtList, diags := types.ListValueFrom(ctx, types.StringType, createdApp.GrantTypes)
-			resp.Diagnostics.Append(diags...)
-			plan.GrantTypes = gtList
-		} else {
-			plan.GrantTypes = types.ListNull(types.StringType)
-		}
+		plan.GrantTypes, d = stringListFromSDK(ctx, createdApp.GrantTypes)
+		resp.Diagnostics.Append(d...)
 	}
 
 	// TokenFields
 	if plan.TokenFields.IsUnknown() {
-		if len(createdApp.TokenFields) > 0 {
-			tfList, diags := types.ListValueFrom(ctx, types.StringType, createdApp.TokenFields)
-			resp.Diagnostics.Append(diags...)
-			plan.TokenFields = tfList
-		} else {
-			plan.TokenFields = types.ListNull(types.StringType)
-		}
+		plan.TokenFields, d = stringListFromSDK(ctx, createdApp.TokenFields)
+		resp.Diagnostics.Append(d...)
 	}
 
 	// Tags
 	if plan.Tags.IsUnknown() {
-		if len(createdApp.Tags) > 0 {
-			tagList, diags := types.ListValueFrom(ctx, types.StringType, createdApp.Tags)
-			resp.Diagnostics.Append(diags...)
-			plan.Tags = tagList
-		} else {
-			plan.Tags = types.ListNull(types.StringType)
-		}
+		plan.Tags, d = stringListFromSDK(ctx, createdApp.Tags)
+		resp.Diagnostics.Append(d...)
 	}
 
 	// ThemeData
@@ -1661,13 +1618,8 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	}
 	// OtherDomains
 	if plan.OtherDomains.IsUnknown() || plan.OtherDomains.IsNull() {
-		if len(createdApp.OtherDomains) > 0 {
-			otherDomainsList, diags := types.ListValueFrom(ctx, types.StringType, createdApp.OtherDomains)
-			resp.Diagnostics.Append(diags...)
-			plan.OtherDomains = otherDomainsList
-		} else {
-			plan.OtherDomains = types.ListNull(types.StringType)
-		}
+		plan.OtherDomains, d = stringListFromSDK(ctx, createdApp.OtherDomains)
+		resp.Diagnostics.Append(d...)
 	}
 
 	if resp.Diagnostics.HasError() {
@@ -1771,37 +1723,15 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	state.SslCert = types.StringValue(app.SslCert)
 
 	// Convert string slices to list types
-	if len(app.RedirectUris) > 0 {
-		redirectURIs, diags := types.ListValueFrom(ctx, types.StringType, app.RedirectUris)
-		resp.Diagnostics.Append(diags...)
-		state.RedirectURIs = redirectURIs
-	} else {
-		state.RedirectURIs = types.ListNull(types.StringType)
-	}
-
-	if len(app.GrantTypes) > 0 {
-		grantTypes, diags := types.ListValueFrom(ctx, types.StringType, app.GrantTypes)
-		resp.Diagnostics.Append(diags...)
-		state.GrantTypes = grantTypes
-	} else {
-		state.GrantTypes = types.ListNull(types.StringType)
-	}
-
-	if len(app.TokenFields) > 0 {
-		tokenFields, diags := types.ListValueFrom(ctx, types.StringType, app.TokenFields)
-		resp.Diagnostics.Append(diags...)
-		state.TokenFields = tokenFields
-	} else {
-		state.TokenFields = types.ListNull(types.StringType)
-	}
-
-	if len(app.Tags) > 0 {
-		tags, diags := types.ListValueFrom(ctx, types.StringType, app.Tags)
-		resp.Diagnostics.Append(diags...)
-		state.Tags = tags
-	} else {
-		state.Tags = types.ListNull(types.StringType)
-	}
+	var d diag.Diagnostics
+	state.RedirectURIs, d = stringListFromSDK(ctx, app.RedirectUris)
+	resp.Diagnostics.Append(d...)
+	state.GrantTypes, d = stringListFromSDK(ctx, app.GrantTypes)
+	resp.Diagnostics.Append(d...)
+	state.TokenFields, d = stringListFromSDK(ctx, app.TokenFields)
+	resp.Diagnostics.Append(d...)
+	state.Tags, d = stringListFromSDK(ctx, app.Tags)
+	resp.Diagnostics.Append(d...)
 
 	// Convert ThemeData to object type
 	if app.ThemeData != nil {
@@ -1995,13 +1925,8 @@ func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	// Convert OtherDomains
-	if len(app.OtherDomains) > 0 {
-		otherDomains, diags := types.ListValueFrom(ctx, types.StringType, app.OtherDomains)
-		resp.Diagnostics.Append(diags...)
-		state.OtherDomains = otherDomains
-	} else {
-		state.OtherDomains = types.ListNull(types.StringType)
-	}
+	state.OtherDomains, d = stringListFromSDK(ctx, app.OtherDomains)
+	resp.Diagnostics.Append(d...)
 
 	if resp.Diagnostics.HasError() {
 		return
@@ -2307,20 +2232,8 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 		SslCert:                      plan.SslCert.ValueString(),
 	}
 
-	success, err := r.client.UpdateApplication(app)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Application",
-			fmt.Sprintf("Could not update application %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Application",
-			fmt.Sprintf("Casdoor returned failure when updating application %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateApplication(app)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating application %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -2387,20 +2300,8 @@ func (r *ApplicationResource) Delete(ctx context.Context, req resource.DeleteReq
 		Organization: state.Organization.ValueString(),
 	}
 
-	success, err := r.client.DeleteApplication(app)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Application",
-			fmt.Sprintf("Could not delete application %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Application",
-			fmt.Sprintf("Casdoor returned failure when deleting application %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeleteApplication(app)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting application %q", state.Name.ValueString())) {
 		return
 	}
 }

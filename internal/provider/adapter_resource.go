@@ -204,20 +204,8 @@ func (r *AdapterResource) Create(ctx context.Context, req resource.CreateRequest
 		IsEnabled:       plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.AddAdapter(adapter)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Adapter",
-			fmt.Sprintf("Could not create adapter %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Adapter",
-			fmt.Sprintf("Casdoor returned failure when creating adapter %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddAdapter(adapter)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating adapter %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -305,20 +293,8 @@ func (r *AdapterResource) Update(ctx context.Context, req resource.UpdateRequest
 		IsEnabled:       plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.UpdateAdapter(adapter)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Adapter",
-			fmt.Sprintf("Could not update adapter %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Adapter",
-			fmt.Sprintf("Casdoor returned failure when updating adapter %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateAdapter(adapter)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating adapter %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -339,20 +315,8 @@ func (r *AdapterResource) Delete(ctx context.Context, req resource.DeleteRequest
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteAdapter(adapter)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Adapter",
-			fmt.Sprintf("Could not delete adapter %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Adapter",
-			fmt.Sprintf("Casdoor returned failure when deleting adapter %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeleteAdapter(adapter)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting adapter %q", state.Name.ValueString())) {
 		return
 	}
 }

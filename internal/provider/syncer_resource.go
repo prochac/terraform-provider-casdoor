@@ -433,20 +433,8 @@ func (r *SyncerResource) Create(ctx context.Context, req resource.CreateRequest,
 		IsEnabled:        plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.AddSyncer(syncer)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Syncer",
-			fmt.Sprintf("Could not create syncer %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Syncer",
-			fmt.Sprintf("Casdoor returned failure when creating syncer %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddSyncer(syncer)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating syncer %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -582,20 +570,8 @@ func (r *SyncerResource) Update(ctx context.Context, req resource.UpdateRequest,
 		IsEnabled:        plan.IsEnabled.ValueBool(),
 	}
 
-	success, err := r.client.UpdateSyncer(syncer)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Syncer",
-			fmt.Sprintf("Could not update syncer %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Syncer",
-			fmt.Sprintf("Casdoor returned failure when updating syncer %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateSyncer(syncer)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating syncer %q", plan.Name.ValueString())) {
 		return
 	}
 

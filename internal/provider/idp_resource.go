@@ -463,20 +463,8 @@ func (r *IdpResource) Create(ctx context.Context, req resource.CreateRequest, re
 		SslMode:                plan.SslMode.ValueString(),
 	}
 
-	success, err := r.client.AddProvider(provider)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Provider",
-			fmt.Sprintf("Could not create provider %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Provider",
-			fmt.Sprintf("Casdoor returned failure when creating provider %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddProvider(provider)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating provider %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -665,20 +653,8 @@ func (r *IdpResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		SslMode:                plan.SslMode.ValueString(),
 	}
 
-	success, err := r.client.UpdateProvider(provider)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Provider",
-			fmt.Sprintf("Could not update provider %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Provider",
-			fmt.Sprintf("Casdoor returned failure when updating provider %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateProvider(provider)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating provider %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -699,20 +675,8 @@ func (r *IdpResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteProvider(provider)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Provider",
-			fmt.Sprintf("Could not delete provider %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Provider",
-			fmt.Sprintf("Casdoor returned failure when deleting provider %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeleteProvider(provider)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting provider %q", state.Name.ValueString())) {
 		return
 	}
 }

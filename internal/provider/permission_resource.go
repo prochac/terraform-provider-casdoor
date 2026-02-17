@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/casdoor/casdoor-go-sdk/casdoorsdk"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -216,26 +217,18 @@ func (r *PermissionResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	var users, groups, roles, domains, resources, actions []string
-
-	if !plan.Users.IsNull() {
-		resp.Diagnostics.Append(plan.Users.ElementsAs(ctx, &users, false)...)
-	}
-	if !plan.Groups.IsNull() {
-		resp.Diagnostics.Append(plan.Groups.ElementsAs(ctx, &groups, false)...)
-	}
-	if !plan.Roles.IsNull() {
-		resp.Diagnostics.Append(plan.Roles.ElementsAs(ctx, &roles, false)...)
-	}
-	if !plan.Domains.IsNull() {
-		resp.Diagnostics.Append(plan.Domains.ElementsAs(ctx, &domains, false)...)
-	}
-	if !plan.Resources.IsNull() {
-		resp.Diagnostics.Append(plan.Resources.ElementsAs(ctx, &resources, false)...)
-	}
-	if !plan.Actions.IsNull() {
-		resp.Diagnostics.Append(plan.Actions.ElementsAs(ctx, &actions, false)...)
-	}
+	users, diags := stringListToSDK(ctx, plan.Users)
+	resp.Diagnostics.Append(diags...)
+	groups, diags := stringListToSDK(ctx, plan.Groups)
+	resp.Diagnostics.Append(diags...)
+	roles, diags := stringListToSDK(ctx, plan.Roles)
+	resp.Diagnostics.Append(diags...)
+	domains, diags := stringListToSDK(ctx, plan.Domains)
+	resp.Diagnostics.Append(diags...)
+	resources, diags := stringListToSDK(ctx, plan.Resources)
+	resp.Diagnostics.Append(diags...)
+	actions, diags := stringListToSDK(ctx, plan.Actions)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -268,20 +261,8 @@ func (r *PermissionResource) Create(ctx context.Context, req resource.CreateRequ
 		State:        plan.State.ValueString(),
 	}
 
-	success, err := r.client.AddPermission(permission)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Permission",
-			fmt.Sprintf("Could not create permission %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Permission",
-			fmt.Sprintf("Casdoor returned failure when creating permission %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddPermission(permission)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating permission %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -300,24 +281,18 @@ func (r *PermissionResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	// Set list values to null if empty.
-	if len(users) == 0 {
-		plan.Users = types.ListNull(types.StringType)
-	}
-	if len(groups) == 0 {
-		plan.Groups = types.ListNull(types.StringType)
-	}
-	if len(roles) == 0 {
-		plan.Roles = types.ListNull(types.StringType)
-	}
-	if len(domains) == 0 {
-		plan.Domains = types.ListNull(types.StringType)
-	}
-	if len(resources) == 0 {
-		plan.Resources = types.ListNull(types.StringType)
-	}
-	if len(actions) == 0 {
-		plan.Actions = types.ListNull(types.StringType)
-	}
+	plan.Users, diags = stringListFromSDK(ctx, users)
+	resp.Diagnostics.Append(diags...)
+	plan.Groups, diags = stringListFromSDK(ctx, groups)
+	resp.Diagnostics.Append(diags...)
+	plan.Roles, diags = stringListFromSDK(ctx, roles)
+	resp.Diagnostics.Append(diags...)
+	plan.Domains, diags = stringListFromSDK(ctx, domains)
+	resp.Diagnostics.Append(diags...)
+	plan.Resources, diags = stringListFromSDK(ctx, resources)
+	resp.Diagnostics.Append(diags...)
+	plan.Actions, diags = stringListFromSDK(ctx, actions)
+	resp.Diagnostics.Append(diags...)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -361,54 +336,20 @@ func (r *PermissionResource) Read(ctx context.Context, req resource.ReadRequest,
 	state.ApproveTime = types.StringValue(permission.ApproveTime)
 	state.State = types.StringValue(permission.State)
 
-	if len(permission.Users) > 0 {
-		users, diags := types.ListValueFrom(ctx, types.StringType, permission.Users)
-		resp.Diagnostics.Append(diags...)
-		state.Users = users
-	} else {
-		state.Users = types.ListNull(types.StringType)
-	}
+	var diags diag.Diagnostics
 
-	if len(permission.Groups) > 0 {
-		groups, diags := types.ListValueFrom(ctx, types.StringType, permission.Groups)
-		resp.Diagnostics.Append(diags...)
-		state.Groups = groups
-	} else {
-		state.Groups = types.ListNull(types.StringType)
-	}
-
-	if len(permission.Roles) > 0 {
-		roles, diags := types.ListValueFrom(ctx, types.StringType, permission.Roles)
-		resp.Diagnostics.Append(diags...)
-		state.Roles = roles
-	} else {
-		state.Roles = types.ListNull(types.StringType)
-	}
-
-	if len(permission.Domains) > 0 {
-		domains, diags := types.ListValueFrom(ctx, types.StringType, permission.Domains)
-		resp.Diagnostics.Append(diags...)
-		state.Domains = domains
-	} else {
-		state.Domains = types.ListNull(types.StringType)
-	}
-
-	if len(permission.Resources) > 0 {
-		resources, diags := types.ListValueFrom(ctx, types.StringType, permission.Resources)
-		resp.Diagnostics.Append(diags...)
-		state.Resources = resources
-	} else {
-		state.Resources = types.ListNull(types.StringType)
-	}
-
-	if len(permission.Actions) > 0 {
-		actions, diags := types.ListValueFrom(ctx, types.StringType, permission.Actions)
-		resp.Diagnostics.Append(diags...)
-		state.Actions = actions
-	} else {
-		state.Actions = types.ListNull(types.StringType)
-	}
-
+	state.Users, diags = stringListFromSDK(ctx, permission.Users)
+	resp.Diagnostics.Append(diags...)
+	state.Groups, diags = stringListFromSDK(ctx, permission.Groups)
+	resp.Diagnostics.Append(diags...)
+	state.Roles, diags = stringListFromSDK(ctx, permission.Roles)
+	resp.Diagnostics.Append(diags...)
+	state.Domains, diags = stringListFromSDK(ctx, permission.Domains)
+	resp.Diagnostics.Append(diags...)
+	state.Resources, diags = stringListFromSDK(ctx, permission.Resources)
+	resp.Diagnostics.Append(diags...)
+	state.Actions, diags = stringListFromSDK(ctx, permission.Actions)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -424,26 +365,18 @@ func (r *PermissionResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	var users, groups, roles, domains, resources, actions []string
-
-	if !plan.Users.IsNull() {
-		resp.Diagnostics.Append(plan.Users.ElementsAs(ctx, &users, false)...)
-	}
-	if !plan.Groups.IsNull() {
-		resp.Diagnostics.Append(plan.Groups.ElementsAs(ctx, &groups, false)...)
-	}
-	if !plan.Roles.IsNull() {
-		resp.Diagnostics.Append(plan.Roles.ElementsAs(ctx, &roles, false)...)
-	}
-	if !plan.Domains.IsNull() {
-		resp.Diagnostics.Append(plan.Domains.ElementsAs(ctx, &domains, false)...)
-	}
-	if !plan.Resources.IsNull() {
-		resp.Diagnostics.Append(plan.Resources.ElementsAs(ctx, &resources, false)...)
-	}
-	if !plan.Actions.IsNull() {
-		resp.Diagnostics.Append(plan.Actions.ElementsAs(ctx, &actions, false)...)
-	}
+	users, diags := stringListToSDK(ctx, plan.Users)
+	resp.Diagnostics.Append(diags...)
+	groups, diags := stringListToSDK(ctx, plan.Groups)
+	resp.Diagnostics.Append(diags...)
+	roles, diags := stringListToSDK(ctx, plan.Roles)
+	resp.Diagnostics.Append(diags...)
+	domains, diags := stringListToSDK(ctx, plan.Domains)
+	resp.Diagnostics.Append(diags...)
+	resources, diags := stringListToSDK(ctx, plan.Resources)
+	resp.Diagnostics.Append(diags...)
+	actions, diags := stringListToSDK(ctx, plan.Actions)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -471,42 +404,24 @@ func (r *PermissionResource) Update(ctx context.Context, req resource.UpdateRequ
 		State:        plan.State.ValueString(),
 	}
 
-	success, err := r.client.UpdatePermission(permission)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Permission",
-			fmt.Sprintf("Could not update permission %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Permission",
-			fmt.Sprintf("Casdoor returned failure when updating permission %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdatePermission(permission)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating permission %q", plan.Name.ValueString())) {
 		return
 	}
 
 	// Set list values to null if empty.
-	if len(users) == 0 {
-		plan.Users = types.ListNull(types.StringType)
-	}
-	if len(groups) == 0 {
-		plan.Groups = types.ListNull(types.StringType)
-	}
-	if len(roles) == 0 {
-		plan.Roles = types.ListNull(types.StringType)
-	}
-	if len(domains) == 0 {
-		plan.Domains = types.ListNull(types.StringType)
-	}
-	if len(resources) == 0 {
-		plan.Resources = types.ListNull(types.StringType)
-	}
-	if len(actions) == 0 {
-		plan.Actions = types.ListNull(types.StringType)
-	}
+	plan.Users, diags = stringListFromSDK(ctx, users)
+	resp.Diagnostics.Append(diags...)
+	plan.Groups, diags = stringListFromSDK(ctx, groups)
+	resp.Diagnostics.Append(diags...)
+	plan.Roles, diags = stringListFromSDK(ctx, roles)
+	resp.Diagnostics.Append(diags...)
+	plan.Domains, diags = stringListFromSDK(ctx, domains)
+	resp.Diagnostics.Append(diags...)
+	plan.Resources, diags = stringListFromSDK(ctx, resources)
+	resp.Diagnostics.Append(diags...)
+	plan.Actions, diags = stringListFromSDK(ctx, actions)
+	resp.Diagnostics.Append(diags...)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -525,20 +440,8 @@ func (r *PermissionResource) Delete(ctx context.Context, req resource.DeleteRequ
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeletePermission(permission)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Permission",
-			fmt.Sprintf("Could not delete permission %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Permission",
-			fmt.Sprintf("Casdoor returned failure when deleting permission %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeletePermission(permission)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting permission %q", state.Name.ValueString())) {
 		return
 	}
 }

@@ -209,20 +209,8 @@ func (r *CertResource) Create(ctx context.Context, req resource.CreateRequest, r
 		AuthorityRootPublicKey: plan.AuthorityRootPublicKey.ValueString(),
 	}
 
-	success, err := r.client.AddCert(cert)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Creating Certificate",
-			fmt.Sprintf("Could not create certificate %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Creating Certificate",
-			fmt.Sprintf("Casdoor returned failure when creating certificate %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.AddCert(cert)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating certificate %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -321,20 +309,8 @@ func (r *CertResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		AuthorityRootPublicKey: plan.AuthorityRootPublicKey.ValueString(),
 	}
 
-	success, err := r.client.UpdateCert(cert)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Certificate",
-			fmt.Sprintf("Could not update certificate %q: %s", plan.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Updating Certificate",
-			fmt.Sprintf("Casdoor returned failure when updating certificate %q", plan.Name.ValueString()),
-		)
+	ok, err := r.client.UpdateCert(cert)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating certificate %q", plan.Name.ValueString())) {
 		return
 	}
 
@@ -356,20 +332,8 @@ func (r *CertResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		Name:  state.Name.ValueString(),
 	}
 
-	success, err := r.client.DeleteCert(cert)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Certificate",
-			fmt.Sprintf("Could not delete certificate %q: %s", state.Name.ValueString(), err),
-		)
-		return
-	}
-
-	if !success {
-		resp.Diagnostics.AddError(
-			"Error Deleting Certificate",
-			fmt.Sprintf("Casdoor returned failure when deleting certificate %q", state.Name.ValueString()),
-		)
+	ok, err := r.client.DeleteCert(cert)
+	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("deleting certificate %q", state.Name.ValueString())) {
 		return
 	}
 }
