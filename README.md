@@ -41,7 +41,7 @@ provider "casdoor" {
 resource "casdoor_organization" "example_org" {
   name         = "acme-corp"
   display_name = "Acme Corporation"
-  website      = "[https://example.com](https://example.com)"
+  website      = "https://example.com"
 }
 
 resource "casdoor_application" "app" {
@@ -51,7 +51,7 @@ resource "casdoor_application" "app" {
   client_id     = "generated-id"
   client_secret = "generated-secret"
   redirect_uris = [
-    "[https://callback.example.com](https://callback.example.com)"
+    "https://callback.example.com"
   ]
 }
 ```
