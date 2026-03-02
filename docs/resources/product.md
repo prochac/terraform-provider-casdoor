@@ -73,6 +73,7 @@ resource "casdoor_product" "credits" {
 
 - `created_time` (String) The time when the product was created.
 - `id` (String) The ID of the product in the format 'owner/name'.
+- `managed_by_plan` (Boolean) True when this product was auto-created by a casdoor_plan. Deletion is a no-op for plan-managed products.
 - `sold` (Number) The number of products sold.
 
 ## Import

@@ -60,9 +60,9 @@ OpenTofu/Terraform Provider for [Casdoor](https://casdoor.org), an Identity and 
 ```bash
 go build .                                    # Build provider
 golangci-lint run                             # Lint
-cd tools; go generate ./...                   # Generate docs (terraform-plugin-docs)
-go test -v -timeout 30m ./...                 # Run all tests (requires Docker)
-go test -v -timeout 30m ./internal/provider -run TestAccOrganization  # Run single test
+go generate ./...                             # Generate docs (terraform-plugin-docs)
+CASDOOR_TEST_LOCAL=1 TF_ACC=1 go test -v -timeout 30m ./...                 # Run all tests (requires Docker)
+CASDOOR_TEST_LOCAL=1 TF_ACC=1 go test -v -timeout 30m ./internal/provider -run TestAccOrganization  # Run single test
 ```
 
 ## Code Style

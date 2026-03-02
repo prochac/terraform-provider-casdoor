@@ -11,13 +11,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -52,6 +50,7 @@ type ProductResourceModel struct {
 	SuccessUrl            types.String  `tfsdk:"success_url"`
 	Providers             types.List    `tfsdk:"providers"`
 	State                 types.String  `tfsdk:"state"`
+	ManagedByPlan         types.Bool    `tfsdk:"managed_by_plan"`
 }
 
 func NewProductResource() resource.Resource {
@@ -98,49 +97,65 @@ func (r *ProductResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Description: "The display name of the product.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"image": schema.StringAttribute{
 				Description: "The image URL for the product.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"detail": schema.StringAttribute{
 				Description: "Detailed information about the product.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Description: "A short description of the product.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"tag": schema.StringAttribute{
 				Description: "A tag for categorizing the product.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"currency": schema.StringAttribute{
 				Description: "The currency for the price (e.g., 'USD', 'EUR').",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"price": schema.Float64Attribute{
 				Description: "The price of the product.",
 				Optional:    true,
 				Computed:    true,
-				Default:     float64default.StaticFloat64(0),
+				PlanModifiers: []planmodifier.Float64{
+					float64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"quantity": schema.Int64Attribute{
 				Description: "The available quantity of the product.",
 				Optional:    true,
 				Computed:    true,
-				Default:     int64default.StaticInt64(0),
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"sold": schema.Int64Attribute{
 				Description: "The number of products sold.",
@@ -153,7 +168,9 @@ func (r *ProductResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Description: "Whether this is a recharge product.",
 				Optional:    true,
 				Computed:    true,
-				Default:     booldefault.StaticBool(false),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"recharge_options": schema.ListAttribute{
 				Description: "List of recharge amount options.",
@@ -168,13 +185,17 @@ func (r *ProductResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Description: "Whether to disable custom recharge amounts.",
 				Optional:    true,
 				Computed:    true,
-				Default:     booldefault.StaticBool(false),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"success_url": schema.StringAttribute{
 				Description: "The URL to redirect to after successful payment.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"providers": schema.ListAttribute{
 				Description: "List of payment provider names for this product.",
@@ -189,7 +210,16 @@ func (r *ProductResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Description: "The current state of the product.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"managed_by_plan": schema.BoolAttribute{
+				Description: "True when this product was auto-created by a casdoor_plan. Deletion is a no-op for plan-managed products.",
+				Computed:    true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -259,24 +289,108 @@ func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	createdTime := plan.CreatedTime.ValueString()
-	if createdTime == "" {
-		createdTime = time.Now().UTC().Format(time.RFC3339)
-	}
+	productID := plan.Owner.ValueString() + "/" + plan.Name.ValueString()
 
-	product, diags := productPlanToSDK(ctx, plan, createdTime)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
+	// Check if the product already exists (e.g. auto-created by a casdoor_plan).
+	existing, err := r.client.GetProduct(productID)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Product",
+			fmt.Sprintf("Could not check for existing product %q: %s", plan.Name.ValueString(), err),
+		)
 		return
 	}
 
-	ok, err := r.client.AddProduct(product)
-	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating product %q", plan.Name.ValueString())) {
-		return
+	if existing != nil {
+		// Adopt the existing plan-created product: overlay user-specified
+		// values onto the existing product, preserving server-set fields
+		// (like currency) that the user didn't configure.
+		plan.ManagedByPlan = types.BoolValue(true)
+
+		if v := plan.DisplayName.ValueString(); v != "" {
+			existing.DisplayName = v
+		}
+		if v := plan.Image.ValueString(); v != "" {
+			existing.Image = v
+		}
+		if v := plan.Detail.ValueString(); v != "" {
+			existing.Detail = v
+		}
+		if v := plan.Description.ValueString(); v != "" {
+			existing.Description = v
+		}
+		if v := plan.Tag.ValueString(); v != "" {
+			existing.Tag = v
+		}
+		if v := plan.Currency.ValueString(); v != "" {
+			existing.Currency = v
+		}
+		if v := plan.Price.ValueFloat64(); v != 0 {
+			existing.Price = v
+		}
+		if v := int(plan.Quantity.ValueInt64()); v != 0 {
+			existing.Quantity = v
+		}
+		if plan.IsRecharge.ValueBool() {
+			existing.IsRecharge = true
+		}
+		if plan.DisableCustomRecharge.ValueBool() {
+			existing.DisableCustomRecharge = true
+		}
+		if v := plan.SuccessUrl.ValueString(); v != "" {
+			existing.SuccessUrl = v
+		}
+		if v := plan.State.ValueString(); v != "" {
+			existing.State = v
+		}
+		if !plan.Providers.IsNull() && !plan.Providers.IsUnknown() {
+			providers, d := stringListToSDK(ctx, plan.Providers)
+			resp.Diagnostics.Append(d...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+			if len(providers) > 0 {
+				existing.Providers = providers
+			}
+		}
+		if !plan.RechargeOptions.IsNull() && !plan.RechargeOptions.IsUnknown() {
+			var rechargeOptions []float64
+			resp.Diagnostics.Append(plan.RechargeOptions.ElementsAs(ctx, &rechargeOptions, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+			if len(rechargeOptions) > 0 {
+				existing.RechargeOptions = rechargeOptions
+			}
+		}
+
+		ok, err := r.client.UpdateProduct(existing)
+		if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("adopting product %q", plan.Name.ValueString())) {
+			return
+		}
+	} else {
+		// Normal creation flow.
+		plan.ManagedByPlan = types.BoolValue(false)
+
+		createdTime := plan.CreatedTime.ValueString()
+		if createdTime == "" {
+			createdTime = time.Now().UTC().Format(time.RFC3339)
+		}
+
+		product, diags := productPlanToSDK(ctx, plan, createdTime)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		ok, err := r.client.AddProduct(product)
+		if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("creating product %q", plan.Name.ValueString())) {
+			return
+		}
 	}
 
 	// Read back the product to get server-generated values.
-	createdProduct, err := r.client.GetProduct(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
+	createdProduct, err := r.client.GetProduct(productID)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Product",
@@ -293,14 +407,32 @@ func (r *ProductResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
+	plan.ID = types.StringValue(productID)
+	plan.Owner = types.StringValue(createdProduct.Owner)
+	plan.Name = types.StringValue(createdProduct.Name)
 	plan.CreatedTime = types.StringValue(createdProduct.CreatedTime)
+	plan.DisplayName = types.StringValue(createdProduct.DisplayName)
+	plan.Image = types.StringValue(createdProduct.Image)
+	plan.Detail = types.StringValue(createdProduct.Detail)
+	plan.Description = types.StringValue(createdProduct.Description)
+	plan.Tag = types.StringValue(createdProduct.Tag)
+	plan.Currency = types.StringValue(createdProduct.Currency)
+	plan.Price = types.Float64Value(createdProduct.Price)
+	plan.Quantity = types.Int64Value(int64(createdProduct.Quantity))
 	plan.Sold = types.Int64Value(int64(createdProduct.Sold))
-	providersList, _ := types.ListValueFrom(ctx, types.StringType, createdProduct.Providers)
-	plan.Providers = providersList
-	rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, createdProduct.RechargeOptions)
-	plan.RechargeOptions = rechargeOptionsList
+	plan.IsRecharge = types.BoolValue(createdProduct.IsRecharge)
+	plan.DisableCustomRecharge = types.BoolValue(createdProduct.DisableCustomRecharge)
+	plan.SuccessUrl = types.StringValue(createdProduct.SuccessUrl)
+	plan.State = types.StringValue(createdProduct.State)
+	if len(createdProduct.Providers) > 0 || !plan.Providers.IsNull() {
+		providersList, _ := types.ListValueFrom(ctx, types.StringType, createdProduct.Providers)
+		plan.Providers = providersList
+	}
+	if len(createdProduct.RechargeOptions) > 0 || !plan.RechargeOptions.IsNull() {
+		rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, createdProduct.RechargeOptions)
+		plan.RechargeOptions = rechargeOptionsList
+	}
 
-	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -349,6 +481,11 @@ func (r *ProductResource) Read(ctx context.Context, req resource.ReadRequest, re
 	rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, product.RechargeOptions)
 	state.RechargeOptions = rechargeOptionsList
 
+	// ManagedByPlan is Terraform-only state; default to false on import.
+	if state.ManagedByPlan.IsNull() || state.ManagedByPlan.IsUnknown() {
+		state.ManagedByPlan = types.BoolValue(false)
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -388,17 +525,32 @@ func (r *ProductResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
+	plan.ID = types.StringValue(updatedProduct.Owner + "/" + updatedProduct.Name)
+	plan.Owner = types.StringValue(updatedProduct.Owner)
+	plan.Name = types.StringValue(updatedProduct.Name)
+	plan.CreatedTime = types.StringValue(updatedProduct.CreatedTime)
+	plan.DisplayName = types.StringValue(updatedProduct.DisplayName)
+	plan.Image = types.StringValue(updatedProduct.Image)
+	plan.Detail = types.StringValue(updatedProduct.Detail)
+	plan.Description = types.StringValue(updatedProduct.Description)
+	plan.Tag = types.StringValue(updatedProduct.Tag)
+	plan.Currency = types.StringValue(updatedProduct.Currency)
+	plan.Price = types.Float64Value(updatedProduct.Price)
+	plan.Quantity = types.Int64Value(int64(updatedProduct.Quantity))
 	plan.Sold = types.Int64Value(int64(updatedProduct.Sold))
 	plan.IsRecharge = types.BoolValue(updatedProduct.IsRecharge)
 	plan.DisableCustomRecharge = types.BoolValue(updatedProduct.DisableCustomRecharge)
 	plan.SuccessUrl = types.StringValue(updatedProduct.SuccessUrl)
 	plan.State = types.StringValue(updatedProduct.State)
-	providersList, _ := types.ListValueFrom(ctx, types.StringType, updatedProduct.Providers)
-	plan.Providers = providersList
-	rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, updatedProduct.RechargeOptions)
-	plan.RechargeOptions = rechargeOptionsList
+	if len(updatedProduct.Providers) > 0 || !plan.Providers.IsNull() {
+		providersList, _ := types.ListValueFrom(ctx, types.StringType, updatedProduct.Providers)
+		plan.Providers = providersList
+	}
+	if len(updatedProduct.RechargeOptions) > 0 || !plan.RechargeOptions.IsNull() {
+		rechargeOptionsList, _ := types.ListValueFrom(ctx, types.Float64Type, updatedProduct.RechargeOptions)
+		plan.RechargeOptions = rechargeOptionsList
+	}
 
-	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
 
@@ -407,6 +559,11 @@ func (r *ProductResource) Delete(ctx context.Context, req resource.DeleteRequest
 
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Plan-managed products are deleted by Casdoor when the plan is destroyed.
+	if state.ManagedByPlan.ValueBool() {
 		return
 	}
 

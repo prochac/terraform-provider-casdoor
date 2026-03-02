@@ -57,13 +57,13 @@ resource "casdoor_plan" "premium" {
 - `payment_providers` (List of String) List of payment providers for this plan.
 - `period` (String) The billing period (e.g., 'Monthly', 'Yearly').
 - `price` (Number) The price of the plan.
-- `product` (String) The product this plan belongs to.
 - `role` (String) The role granted by this plan.
 
 ### Read-Only
 
 - `created_time` (String) The time when the plan was created.
 - `id` (String) The ID of the plan in the format 'owner/name'.
+- `product` (String) The product auto-created by Casdoor for this plan.
 
 ## Import
 

@@ -30,6 +30,7 @@ func TestAccPlanResource_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "currency", "USD"),
 					resource.TestCheckResourceAttr(resourceName, "period", ""),
 					resource.TestCheckResourceAttr(resourceName, "is_enabled", "true"),
+					resource.TestCheckResourceAttrSet(resourceName, "product"),
 				),
 			},
 			// Update and Read testing
@@ -66,6 +67,52 @@ func TestAccPlanResource_import(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestAccPlanResource_productAdoption(t *testing.T) {
+	config := setupTestConfig(t)
+	rName := "tf-test-" + acctest.RandStringFromCharSet(8, acctest.CharSetAlphaNum)
+	productResourceName := "casdoor_product.test"
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(config),
+		Steps: []resource.TestStep{
+			// Create a plan (auto-creates a backing product), then adopt the product.
+			{
+				Config: testAccProviderConfig(config) + testAccPlanProductAdoptionConfig(rName, "https://example.com/success"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr(productResourceName, "managed_by_plan", "true"),
+					resource.TestCheckResourceAttr(productResourceName, "success_url", "https://example.com/success"),
+					resource.TestCheckResourceAttr(productResourceName, "owner", "built-in"),
+				),
+			},
+			// Update the adopted product's success_url.
+			{
+				Config: testAccProviderConfig(config) + testAccPlanProductAdoptionConfig(rName, "https://example.com/updated"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr(productResourceName, "managed_by_plan", "true"),
+					resource.TestCheckResourceAttr(productResourceName, "success_url", "https://example.com/updated"),
+				),
+			},
+		},
+	})
+}
+
+func testAccPlanProductAdoptionConfig(name, successUrl string) string {
+	return fmt.Sprintf(`
+resource "casdoor_plan" "test" {
+  owner        = "built-in"
+  name         = %[1]q
+  display_name = "Test Plan"
+  currency     = "USD"
+}
+
+resource "casdoor_product" "test" {
+  owner       = "built-in"
+  name        = casdoor_plan.test.product
+  success_url = %[2]q
+}
+`, name, successUrl)
 }
 
 func testAccPlanResourceConfig(name, displayName string) string {

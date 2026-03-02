@@ -118,8 +118,7 @@ func (r *PlanResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Default:     stringdefault.StaticString(""),
 			},
 			"product": schema.StringAttribute{
-				Description: "The product this plan belongs to.",
-				Optional:    true,
+				Description: "The product auto-created by Casdoor for this plan.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
