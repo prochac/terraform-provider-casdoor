@@ -107,7 +107,6 @@ resource "casdoor_user" "admin" {
 - `original_refresh_token` (String, Sensitive) The user's original refresh token.
 - `original_token` (String, Sensitive) The user's original token.
 - `password` (String, Sensitive) The user's password. Note: This is write-only and will not be read back from Casdoor.
-- `password_salt` (String, Sensitive) The password salt.
 - `password_type` (String) The password hashing type.
 - `permanent_avatar` (String) URL of the permanent avatar.
 - `phone` (String) The user's phone number.
@@ -140,6 +139,7 @@ resource "casdoor_user" "admin" {
 - `last_signin_ip` (String) The last sign-in IP address.
 - `last_signin_time` (String) The last sign-in time.
 - `last_signin_wrong_time` (String) The last time a wrong sign-in attempt was made.
+- `password_salt` (String, Sensitive) The password salt. Server-generated, cannot be set via API.
 - `pre_hash` (String) The previous user hash.
 - `signin_wrong_times` (Number) The number of wrong sign-in attempts.
 - `updated_time` (String) The time when the user was last updated.

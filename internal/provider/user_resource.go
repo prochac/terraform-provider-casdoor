@@ -567,8 +567,7 @@ func (r *UserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Default:     stringdefault.StaticString(""),
 			},
 			"password_salt": schema.StringAttribute{
-				Description: "The password salt.",
-				Optional:    true,
+				Description: "The password salt. Server-generated, cannot be set via API.",
 				Computed:    true,
 				Sensitive:   true,
 				PlanModifiers: []planmodifier.String{
@@ -1331,7 +1330,6 @@ func userPlanToSDK(ctx context.Context, plan UserResourceModel, createdTime, upd
 		IsDeleted:            plan.IsDeleted.ValueBool(),
 		SignupApplication:    plan.SignupApplication.ValueString(),
 		ExternalId:           plan.ExternalId.ValueString(),
-		PasswordSalt:         plan.PasswordSalt.ValueString(),
 		AvatarType:           plan.AvatarType.ValueString(),
 		PermanentAvatar:      plan.PermanentAvatar.ValueString(),
 		Address:              address,
@@ -1996,7 +1994,6 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		SignupApplication:    plan.SignupApplication.ValueString(),
 		CreatedTime:          plan.CreatedTime.ValueString(),
 		ExternalId:           plan.ExternalId.ValueString(),
-		PasswordSalt:         plan.PasswordSalt.ValueString(),
 		AvatarType:           plan.AvatarType.ValueString(),
 		PermanentAvatar:      plan.PermanentAvatar.ValueString(),
 		Address:              address,
