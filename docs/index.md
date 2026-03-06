@@ -4,7 +4,7 @@ page_title: "casdoor Provider"
 description: |-
   The Casdoor provider allows you to manage Casdoor resources.
   Authentication
-  The provider supports two authWhen using username/passwordentication methods:
+  The provider supports two authentication methods:
   1. OAuth Application Credentials (recommended for production)
   
   provider "casdoor" {
@@ -27,6 +27,12 @@ description: |-
   }
   
   When using username/password, the provider will login and automatically fetch the application's OAuth credentials.
+  Obtaining OAuth Credentials
+  Casdoor generates random clientId, clientSecret, and a JWT certificate for its built-in application on first start.
+  To use known credentials from day one, use Casdoor's
+  Data Initialization https://casdoor.org/docs/deployment/data-initialization/ mechanism:
+  Generate your own client_id, client_secret, and certificatePlace them in an init_data.json fileSet initDataNewOnly = false and initDataFile in Casdoor's app.confUse the same values in your provider configuration
+  See the Casdoor Data Initialization docs https://casdoor.org/docs/deployment/data-initialization/ for the full reference.
 ---
 
 # casdoor Provider
@@ -35,7 +41,7 @@ The Casdoor provider allows you to manage Casdoor resources.
 
 ## Authentication
 
-The provider supports two authWhen using username/passwordentication methods:
+The provider supports two authentication methods:
 
 ### 1. OAuth Application Credentials (recommended for production)
 
@@ -64,10 +70,26 @@ provider "casdoor" {
 
 When using username/password, the provider will login and automatically fetch the application's OAuth credentials.
 
+## Obtaining OAuth Credentials
+
+Casdoor generates random `clientId`, `clientSecret`, and a JWT certificate for its built-in application on first start.
+To use known credentials from day one, use Casdoor's
+[Data Initialization](https://casdoor.org/docs/deployment/data-initialization/) mechanism:
+
+1. Generate your own `client_id`, `client_secret`, and certificate
+2. Place them in an `init_data.json` file
+3. Set `initDataNewOnly = false` and `initDataFile` in Casdoor's `app.conf`
+4. Use the same values in your provider configuration
+
+See the [Casdoor Data Initialization docs](https://casdoor.org/docs/deployment/data-initialization/) for the full reference.
+
 ## Example Usage
 
 ```terraform
 # Authentication Method 1: OAuth Application Credentials (recommended for production)
+# To obtain these credentials, use Casdoor's Data Initialization (init_data.json)
+# to inject known values from day one. See:
+# https://casdoor.org/docs/deployment/data-initialization/
 provider "casdoor" {
   endpoint          = "https://casdoor.example.com"
   client_id         = "your-client-id"

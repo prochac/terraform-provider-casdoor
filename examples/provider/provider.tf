@@ -1,4 +1,7 @@
 # Authentication Method 1: OAuth Application Credentials (recommended for production)
+# To obtain these credentials, use Casdoor's Data Initialization (init_data.json)
+# to inject known values from day one. See:
+# https://casdoor.org/docs/deployment/data-initialization/
 provider "casdoor" {
   endpoint          = "https://casdoor.example.com"
   client_id         = "your-client-id"

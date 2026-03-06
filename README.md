@@ -28,10 +28,12 @@ terraform {
 }
 
 provider "casdoor" {
-  endpoint = "http://localhost:8000" # Casdoor URL
-  client_id     = "YOUR_CLIENT_ID"
-  client_secret = "YOUR_CLIENT_SECRET"
-  certificate   = "" # Optional: X.509 certificate for validation
+  endpoint          = "http://localhost:8000"
+  client_id         = "YOUR_CLIENT_ID"
+  client_secret     = "YOUR_CLIENT_SECRET"
+  certificate       = file("path/to/certificate.pem")
+  organization_name = "built-in"
+  application_name  = "app-built-in"
 }
 ```
 

@@ -56,7 +56,7 @@ func (p *CasdoorProvider) Schema(_ context.Context, _ provider.SchemaRequest, re
 
 ## Authentication
 
-The provider supports two authWhen using username/passwordentication methods:
+The provider supports two authentication methods:
 
 ### 1. OAuth Application Credentials (recommended for production)
 
@@ -84,6 +84,19 @@ provider "casdoor" {
 ` + "```" + `
 
 When using username/password, the provider will login and automatically fetch the application's OAuth credentials.
+
+## Obtaining OAuth Credentials
+
+Casdoor generates random ` + "`clientId`" + `, ` + "`clientSecret`" + `, and a JWT certificate for its built-in application on first start.
+To use known credentials from day one, use Casdoor's
+[Data Initialization](https://casdoor.org/docs/deployment/data-initialization/) mechanism:
+
+1. Generate your own ` + "`client_id`" + `, ` + "`client_secret`" + `, and certificate
+2. Place them in an ` + "`init_data.json`" + ` file
+3. Set ` + "`initDataNewOnly = false`" + ` and ` + "`initDataFile`" + ` in Casdoor's ` + "`app.conf`" + `
+4. Use the same values in your provider configuration
+
+See the [Casdoor Data Initialization docs](https://casdoor.org/docs/deployment/data-initialization/) for the full reference.
 `,
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
