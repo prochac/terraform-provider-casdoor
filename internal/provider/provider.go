@@ -340,6 +340,7 @@ func (p *CasdoorProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewPlanResource,
 		NewPricingResource,
 		NewProductResource,
+		NewResourceResource,
 		NewRoleResource,
 		NewSyncerResource,
 		NewTokenResource,
