@@ -29,21 +29,19 @@ type AdapterResource struct {
 }
 
 type AdapterResourceModel struct {
-	ID              types.String `tfsdk:"id"`
-	Owner           types.String `tfsdk:"owner"`
-	Name            types.String `tfsdk:"name"`
-	CreatedTime     types.String `tfsdk:"created_time"`
-	UseSameDb       types.Bool   `tfsdk:"use_same_db"`
-	Type            types.String `tfsdk:"type"`
-	DatabaseType    types.String `tfsdk:"database_type"`
-	Host            types.String `tfsdk:"host"`
-	Port            types.Int64  `tfsdk:"port"`
-	User            types.String `tfsdk:"user"`
-	Password        types.String `tfsdk:"password"`
-	Database        types.String `tfsdk:"database"`
-	Table           types.String `tfsdk:"table"`
-	TableNamePrefix types.String `tfsdk:"table_name_prefix"`
-	IsEnabled       types.Bool   `tfsdk:"is_enabled"`
+	ID           types.String `tfsdk:"id"`
+	Owner        types.String `tfsdk:"owner"`
+	Name         types.String `tfsdk:"name"`
+	CreatedTime  types.String `tfsdk:"created_time"`
+	UseSameDb    types.Bool   `tfsdk:"use_same_db"`
+	Type         types.String `tfsdk:"type"`
+	DatabaseType types.String `tfsdk:"database_type"`
+	Host         types.String `tfsdk:"host"`
+	Port         types.Int64  `tfsdk:"port"`
+	User         types.String `tfsdk:"user"`
+	Password     types.String `tfsdk:"password"`
+	Database     types.String `tfsdk:"database"`
+	Table        types.String `tfsdk:"table"`
 }
 
 func NewAdapterResource() resource.Resource {
@@ -141,18 +139,6 @@ func (r *AdapterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Computed:    true,
 				Default:     stringdefault.StaticString(""),
 			},
-			"table_name_prefix": schema.StringAttribute{
-				Description: "The table name prefix for policy storage.",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString(""),
-			},
-			"is_enabled": schema.BoolAttribute{
-				Description: "Whether this adapter is enabled.",
-				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(false),
-			},
 		},
 	}
 }
@@ -176,20 +162,18 @@ func (r *AdapterResource) Configure(_ context.Context, req resource.ConfigureReq
 
 func adapterPlanToSDK(plan AdapterResourceModel, createdTime string) *casdoorsdk.Adapter {
 	return &casdoorsdk.Adapter{
-		Owner:           plan.Owner.ValueString(),
-		Name:            plan.Name.ValueString(),
-		CreatedTime:     createdTime,
-		UseSameDb:       plan.UseSameDb.ValueBool(),
-		Type:            plan.Type.ValueString(),
-		DatabaseType:    plan.DatabaseType.ValueString(),
-		Host:            plan.Host.ValueString(),
-		Port:            int(plan.Port.ValueInt64()),
-		User:            plan.User.ValueString(),
-		Password:        plan.Password.ValueString(),
-		Database:        plan.Database.ValueString(),
-		Table:           plan.Table.ValueString(),
-		TableNamePrefix: plan.TableNamePrefix.ValueString(),
-		IsEnabled:       plan.IsEnabled.ValueBool(),
+		Owner:        plan.Owner.ValueString(),
+		Name:         plan.Name.ValueString(),
+		CreatedTime:  createdTime,
+		UseSameDb:    plan.UseSameDb.ValueBool(),
+		Type:         plan.Type.ValueString(),
+		DatabaseType: plan.DatabaseType.ValueString(),
+		Host:         plan.Host.ValueString(),
+		Port:         int(plan.Port.ValueInt64()),
+		User:         plan.User.ValueString(),
+		Password:     plan.Password.ValueString(),
+		Database:     plan.Database.ValueString(),
+		Table:        plan.Table.ValueString(),
 	}
 }
 
@@ -266,8 +250,6 @@ func (r *AdapterResource) Read(ctx context.Context, req resource.ReadRequest, re
 	state.User = types.StringValue(adapter.User)
 	state.Password = types.StringValue(adapter.Password)
 	state.Database = types.StringValue(adapter.Database)
-	state.TableNamePrefix = types.StringValue(adapter.TableNamePrefix)
-	state.IsEnabled = types.BoolValue(adapter.IsEnabled)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }

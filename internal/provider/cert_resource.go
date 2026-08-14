@@ -28,20 +28,18 @@ type CertResource struct {
 }
 
 type CertResourceModel struct {
-	ID                     types.String `tfsdk:"id"`
-	Owner                  types.String `tfsdk:"owner"`
-	Name                   types.String `tfsdk:"name"`
-	CreatedTime            types.String `tfsdk:"created_time"`
-	DisplayName            types.String `tfsdk:"display_name"`
-	Scope                  types.String `tfsdk:"scope"`
-	Type                   types.String `tfsdk:"type"`
-	CryptoAlgorithm        types.String `tfsdk:"crypto_algorithm"`
-	BitSize                types.Int64  `tfsdk:"bit_size"`
-	ExpireInYears          types.Int64  `tfsdk:"expire_in_years"`
-	Certificate            types.String `tfsdk:"certificate"`
-	PrivateKey             types.String `tfsdk:"private_key"`
-	AuthorityPublicKey     types.String `tfsdk:"authority_public_key"`
-	AuthorityRootPublicKey types.String `tfsdk:"authority_root_public_key"`
+	ID              types.String `tfsdk:"id"`
+	Owner           types.String `tfsdk:"owner"`
+	Name            types.String `tfsdk:"name"`
+	CreatedTime     types.String `tfsdk:"created_time"`
+	DisplayName     types.String `tfsdk:"display_name"`
+	Scope           types.String `tfsdk:"scope"`
+	Type            types.String `tfsdk:"type"`
+	CryptoAlgorithm types.String `tfsdk:"crypto_algorithm"`
+	BitSize         types.Int64  `tfsdk:"bit_size"`
+	ExpireInYears   types.Int64  `tfsdk:"expire_in_years"`
+	Certificate     types.String `tfsdk:"certificate"`
+	PrivateKey      types.String `tfsdk:"private_key"`
 }
 
 func NewCertResource() resource.Resource {
@@ -131,18 +129,6 @@ func (r *CertResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				Sensitive:   true,
 			},
-			"authority_public_key": schema.StringAttribute{
-				Description: "The authority public key (PEM format).",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString(""),
-			},
-			"authority_root_public_key": schema.StringAttribute{
-				Description: "The authority root public key (PEM format).",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString(""),
-			},
 		},
 	}
 }
@@ -166,19 +152,17 @@ func (r *CertResource) Configure(_ context.Context, req resource.ConfigureReques
 
 func certPlanToSDK(plan CertResourceModel, createdTime string) *casdoorsdk.Cert {
 	return &casdoorsdk.Cert{
-		Owner:                  plan.Owner.ValueString(),
-		Name:                   plan.Name.ValueString(),
-		CreatedTime:            createdTime,
-		DisplayName:            plan.DisplayName.ValueString(),
-		Scope:                  plan.Scope.ValueString(),
-		Type:                   plan.Type.ValueString(),
-		CryptoAlgorithm:        plan.CryptoAlgorithm.ValueString(),
-		BitSize:                int(plan.BitSize.ValueInt64()),
-		ExpireInYears:          int(plan.ExpireInYears.ValueInt64()),
-		Certificate:            plan.Certificate.ValueString(),
-		PrivateKey:             plan.PrivateKey.ValueString(),
-		AuthorityPublicKey:     plan.AuthorityPublicKey.ValueString(),
-		AuthorityRootPublicKey: plan.AuthorityRootPublicKey.ValueString(),
+		Owner:           plan.Owner.ValueString(),
+		Name:            plan.Name.ValueString(),
+		CreatedTime:     createdTime,
+		DisplayName:     plan.DisplayName.ValueString(),
+		Scope:           plan.Scope.ValueString(),
+		Type:            plan.Type.ValueString(),
+		CryptoAlgorithm: plan.CryptoAlgorithm.ValueString(),
+		BitSize:         int(plan.BitSize.ValueInt64()),
+		ExpireInYears:   int(plan.ExpireInYears.ValueInt64()),
+		Certificate:     plan.Certificate.ValueString(),
+		PrivateKey:      plan.PrivateKey.ValueString(),
 	}
 }
 
@@ -283,8 +267,6 @@ func (r *CertResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.ExpireInYears = types.Int64Value(int64(cert.ExpireInYears))
 	state.Certificate = types.StringValue(cert.Certificate)
 	state.PrivateKey = types.StringValue(cert.PrivateKey)
-	state.AuthorityPublicKey = types.StringValue(cert.AuthorityPublicKey)
-	state.AuthorityRootPublicKey = types.StringValue(cert.AuthorityRootPublicKey)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }

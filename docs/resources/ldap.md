@@ -42,20 +42,20 @@ resource "casdoor_ldap" "secure" {
 
 # Example: LDAP with auto-sync and custom attributes
 resource "casdoor_ldap" "full" {
-  id                     = "ldap-full"
-  owner                  = "admin"
-  server_name            = "Full LDAP Configuration"
-  host                   = "ldap.example.com"
-  port                   = 389
-  enable_ssl             = false
-  username               = "cn=readonly,dc=example,dc=com"
-  password               = var.ldap_password
-  base_dn                = "ou=people,dc=example,dc=com"
-  filter                 = "(&(objectClass=posixAccount)(uid=*))"
-  filter_fields          = ["uid", "cn", "mail"]
-  default_group          = "users"
-  password_type          = "plain"
-  auto_sync              = 60 # Sync every 60 minutes
+  id            = "ldap-full"
+  owner         = "admin"
+  server_name   = "Full LDAP Configuration"
+  host          = "ldap.example.com"
+  port          = 389
+  enable_ssl    = false
+  username      = "cn=readonly,dc=example,dc=com"
+  password      = var.ldap_password
+  base_dn       = "ou=people,dc=example,dc=com"
+  filter        = "(&(objectClass=posixAccount)(uid=*))"
+  filter_fields = ["uid", "cn", "mail"]
+  default_group = "users"
+  password_type = "plain"
+  auto_sync     = 60 # Sync every 60 minutes
 
   custom_attributes = {
     "displayName" = "name"

@@ -23,7 +23,7 @@ func TestAccLdapResource_basic(t *testing.T) {
 				Config: testAccProviderConfig(config) + testAccLdapResourceConfig(rID, "Test LDAP Server"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "id", rID),
-					resource.TestCheckResourceAttr(resourceName, "owner", "admin"),
+					resource.TestCheckResourceAttr(resourceName, "owner", "built-in"),
 					resource.TestCheckResourceAttr(resourceName, "server_name", "Test LDAP Server"),
 					resource.TestCheckResourceAttr(resourceName, "host", "ldap.example.com"),
 					resource.TestCheckResourceAttr(resourceName, "port", "389"),
@@ -94,7 +94,7 @@ func testAccLdapResourceConfig(id, serverName string) string {
 	return fmt.Sprintf(`
 resource "casdoor_ldap" "test" {
   id          = %q
-  owner       = "admin"
+  owner       = "built-in"
   server_name = %q
   host        = "ldap.example.com"
   port        = 389
@@ -109,7 +109,7 @@ func testAccLdapResourceConfigWithSsl(id string) string {
 	return fmt.Sprintf(`
 resource "casdoor_ldap" "test" {
   id                     = %q
-  owner                  = "admin"
+  owner                  = "built-in"
   server_name            = "Secure LDAP Server"
   host                   = "ldaps.example.com"
   port                   = 636

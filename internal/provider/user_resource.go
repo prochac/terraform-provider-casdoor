@@ -295,8 +295,6 @@ type UserResourceModel struct {
 	BalanceCurrency        types.String  `tfsdk:"balance_currency"`
 	RegisterType           types.String  `tfsdk:"register_type"`
 	RegisterSource         types.String  `tfsdk:"register_source"`
-	AccessKey              types.String  `tfsdk:"access_key"`
-	AccessSecret           types.String  `tfsdk:"access_secret"`
 	AccessToken            types.String  `tfsdk:"access_token"`
 	OriginalToken          types.String  `tfsdk:"original_token"`
 	OriginalRefreshToken   types.String  `tfsdk:"original_refresh_token"`
@@ -402,10 +400,11 @@ func (r *UserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Default:     stringdefault.StaticString(""),
 			},
 			"avatar": schema.StringAttribute{
+				// No Default: Casdoor assigns a default avatar URL on create,
+				// so an unconfigured value must come from the server.
 				Description: "URL of the user's avatar.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
 			},
 			"email": schema.StringAttribute{
 				Description: "The user's email address.",
@@ -510,10 +509,11 @@ func (r *UserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Default:     int64default.StaticInt64(0),
 			},
 			"ranking": schema.Int64Attribute{
+				// No Default: Casdoor assigns an incrementing ranking on create,
+				// so an unconfigured value must come from the server.
 				Description: "The user's ranking.",
 				Optional:    true,
 				Computed:    true,
-				Default:     int64default.StaticInt64(0),
 			},
 			"is_admin": schema.BoolAttribute{
 				Description: "Whether the user is an administrator.",
@@ -736,20 +736,6 @@ func (r *UserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "The registration source.",
 				Optional:    true,
 				Computed:    true,
-				Default:     stringdefault.StaticString(""),
-			},
-			"access_key": schema.StringAttribute{
-				Description: "The user's access key.",
-				Optional:    true,
-				Computed:    true,
-				Sensitive:   true,
-				Default:     stringdefault.StaticString(""),
-			},
-			"access_secret": schema.StringAttribute{
-				Description: "The user's access secret.",
-				Optional:    true,
-				Computed:    true,
-				Sensitive:   true,
 				Default:     stringdefault.StaticString(""),
 			},
 			"access_token": schema.StringAttribute{
@@ -1344,8 +1330,6 @@ func userPlanToSDK(ctx context.Context, plan UserResourceModel, createdTime, upd
 		BalanceCurrency:      plan.BalanceCurrency.ValueString(),
 		RegisterType:         plan.RegisterType.ValueString(),
 		RegisterSource:       plan.RegisterSource.ValueString(),
-		AccessKey:            plan.AccessKey.ValueString(),
-		AccessSecret:         plan.AccessSecret.ValueString(),
 		AccessToken:          plan.AccessToken.ValueString(),
 		OriginalToken:        plan.OriginalToken.ValueString(),
 		OriginalRefreshToken: plan.OriginalRefreshToken.ValueString(),
@@ -1436,15 +1420,11 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		plan.SigninWrongTimes = types.Int64Value(int64(createdUser.SigninWrongTimes))
 		plan.BalanceCurrency = types.StringValue(createdUser.BalanceCurrency)
 		plan.RegisterType = types.StringValue(createdUser.RegisterType)
+		plan.Avatar = types.StringValue(createdUser.Avatar)
+		plan.Ranking = types.Int64Value(int64(createdUser.Ranking))
 		// Preserve server-generated sensitive values.
 		if createdUser.PasswordSalt != "***" {
 			plan.PasswordSalt = types.StringValue(createdUser.PasswordSalt)
-		}
-		if createdUser.AccessKey != "***" {
-			plan.AccessKey = types.StringValue(createdUser.AccessKey)
-		}
-		if createdUser.AccessSecret != "***" {
-			plan.AccessSecret = types.StringValue(createdUser.AccessSecret)
 		}
 		if createdUser.TotpSecret != "***" {
 			plan.TotpSecret = types.StringValue(createdUser.TotpSecret)
@@ -1587,12 +1567,6 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.BalanceCurrency = types.StringValue(user.BalanceCurrency)
 	state.RegisterType = types.StringValue(user.RegisterType)
 	state.RegisterSource = types.StringValue(user.RegisterSource)
-	if user.AccessKey != "***" {
-		state.AccessKey = types.StringValue(user.AccessKey)
-	}
-	if user.AccessSecret != "***" {
-		state.AccessSecret = types.StringValue(user.AccessSecret)
-	}
 	if user.AccessToken != "***" {
 		state.AccessToken = types.StringValue(user.AccessToken)
 	}
@@ -2008,8 +1982,6 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		BalanceCurrency:      plan.BalanceCurrency.ValueString(),
 		RegisterType:         plan.RegisterType.ValueString(),
 		RegisterSource:       plan.RegisterSource.ValueString(),
-		AccessKey:            plan.AccessKey.ValueString(),
-		AccessSecret:         plan.AccessSecret.ValueString(),
 		AccessToken:          plan.AccessToken.ValueString(),
 		OriginalToken:        plan.OriginalToken.ValueString(),
 		OriginalRefreshToken: plan.OriginalRefreshToken.ValueString(),
@@ -2049,6 +2021,20 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	ok, err := r.client.UpdateUser(user)
 	if sdkError(&resp.Diagnostics, ok, err, fmt.Sprintf("updating user %q", plan.Name.ValueString())) {
 		return
+	}
+
+	// Read back the server-assigned values for attributes Casdoor computes.
+	updatedUser, err := r.client.GetUser(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading User",
+			fmt.Sprintf("Could not read user %q after update: %s", plan.Name.ValueString(), err),
+		)
+		return
+	}
+	if updatedUser != nil {
+		plan.Avatar = types.StringValue(updatedUser.Avatar)
+		plan.Ranking = types.Int64Value(int64(updatedUser.Ranking))
 	}
 
 	if len(groups) == 0 {

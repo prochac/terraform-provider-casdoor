@@ -51,8 +51,6 @@ resource "casdoor_cert" "custom_cert" {
 
 ### Optional
 
-- `authority_public_key` (String) The authority public key (PEM format).
-- `authority_root_public_key` (String) The authority root public key (PEM format).
 - `bit_size` (Number) The key bit size (e.g., 2048, 4096).
 - `certificate` (String) The X.509 certificate (PEM format).
 - `crypto_algorithm` (String) The cryptographic algorithm (e.g., 'RS256').

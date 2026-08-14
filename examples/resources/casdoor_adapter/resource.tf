@@ -18,7 +18,6 @@ resource "casdoor_adapter" "custom_db" {
   password      = var.db_password
   database      = "casbin"
   table         = "casbin_rule"
-  is_enabled    = true
 }
 
 # Example: Adapter with PostgreSQL
@@ -33,5 +32,4 @@ resource "casdoor_adapter" "postgres" {
   password      = var.db_password
   database      = "casbin"
   table         = "casbin_rule"
-  is_enabled    = true
 }

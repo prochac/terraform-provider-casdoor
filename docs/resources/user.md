@@ -32,9 +32,9 @@ resource "casdoor_user" "admin" {
   is_admin     = true
   type         = "normal-user"
 
-  affiliation = "Example Corp"
-  title       = "System Administrator"
-  language    = "en"
+  affiliation  = "Example Corp"
+  title        = "System Administrator"
+  language     = "en"
   country_code = "US"
 
   groups = ["admins", "developers"]
@@ -51,8 +51,6 @@ resource "casdoor_user" "admin" {
 
 ### Optional
 
-- `access_key` (String, Sensitive) The user's access key.
-- `access_secret` (String, Sensitive) The user's access secret.
 - `access_token` (String, Sensitive) The user's access token.
 - `address` (List of String) The user's address lines.
 - `addresses` (Attributes List) The user's structured addresses. (see [below for nested schema](#nestedatt--addresses))
