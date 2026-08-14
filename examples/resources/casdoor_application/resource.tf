@@ -153,10 +153,10 @@ resource "casdoor_application" "full_app" {
     rule     = "None"
   }
   signup_items {
-    name     = "Providers"
-    visible  = true
-    required = true
-    rule     = "None"
+    name       = "Providers"
+    visible    = true
+    required   = true
+    rule       = "None"
     custom_css = <<-EOT
       .provider-img {
         width: 30px;
