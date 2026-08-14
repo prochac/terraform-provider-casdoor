@@ -3,6 +3,19 @@
 page_title: "casdoor Provider"
 description: |-
   The Casdoor provider allows you to manage Casdoor resources.
+  Compatibility
+  | Provider | Casdoor server | Tested against |
+  | --- | --- | --- |
+  | >= v0.1.0 | >= 3.0.0 | 3.0.0 and 3.153.0 |
+  | <= v0.0.13 | pre-3.x schema | — |
+  Casdoor 3.0.0 changed several object schemas. This provider targets the 3.x
+  schema: attributes that earlier releases exposed but that no longer exist
+  upstream — such as casdoor_adapter.table_name_prefix and
+  casdoor_user.access_key — have been removed, so upgrading is a breaking
+  change for configurations that set them.
+  The acceptance suite runs as a CI matrix against both the lowest and highest
+  supported server versions, so the range above is verified at its boundaries.
+  Versions between them are expected to work but are not individually exercised.
   Authentication
   The provider supports two authentication methods:
   1. OAuth Application Credentials (recommended for production)
@@ -38,6 +51,23 @@ description: |-
 # casdoor Provider
 
 The Casdoor provider allows you to manage Casdoor resources.
+
+## Compatibility
+
+| Provider | Casdoor server | Tested against |
+| --- | --- | --- |
+| >= v0.1.0 | >= 3.0.0 | 3.0.0 and 3.153.0 |
+| <= v0.0.13 | pre-3.x schema | — |
+
+Casdoor 3.0.0 changed several object schemas. This provider targets the 3.x
+schema: attributes that earlier releases exposed but that no longer exist
+upstream — such as `casdoor_adapter.table_name_prefix` and
+`casdoor_user.access_key` — have been removed, so upgrading is a breaking
+change for configurations that set them.
+
+The acceptance suite runs as a CI matrix against both the lowest and highest
+supported server versions, so the range above is verified at its boundaries.
+Versions between them are expected to work but are not individually exercised.
 
 ## Authentication
 

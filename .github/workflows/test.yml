@@ -7,8 +7,8 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
-    name: Build & Test
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
@@ -19,10 +19,62 @@ jobs:
           go-version: '1.25'
           cache: true
 
+      # tfplugindocs otherwise downloads the Terraform CLI itself via hc-install,
+      # which verifies HashiCorp's GPG signature and currently fails with
+      # "openpgp: key expired". Providing the binary on PATH skips that path.
+      # terraform_wrapper must stay false: the wrapper is a shell script that
+      # breaks terraform-exec.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.4'
+          terraform_wrapper: false
+
       - name: Lint
         uses: golangci/golangci-lint-action@v9.2.0
         with:
           version: latest
 
+      - name: Verify generated docs are up to date
+        run: |
+          go generate ./...
+          git diff --exit-code -- docs/ || {
+            echo "::error::docs/ is out of date - run 'go generate ./...' and commit the result"
+            exit 1
+          }
+
+  test:
+    # Acceptance tests run against the lowest and highest supported Casdoor
+    # versions, so the compatibility table in provider.go stays evidence-backed.
+    # Keep these versions in sync with that table.
+    name: Acceptance (Casdoor ${{ matrix.casdoor }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        casdoor:
+          - '3.0.0'
+          - '3.153.0'
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@v6.2.0
+        with:
+          go-version: '1.25'
+          cache: true
+
+      # See the lint job: terraform-plugin-testing downloads the CLI the same
+      # way and hits the same expired-signature failure without this.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.4'
+          terraform_wrapper: false
+
       - name: Test (with Testcontainers)
+        env:
+          TF_ACC: '1'
+          CASDOOR_TEST_LOCAL: '1'
+          CASDOOR_TEST_IMAGE: casbin/casdoor-all-in-one:${{ matrix.casdoor }}
         run: go test -v -timeout 30m ./...

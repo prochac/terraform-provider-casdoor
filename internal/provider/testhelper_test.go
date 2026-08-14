@@ -59,6 +59,15 @@ KFBQY1dI0zKy3G0C/vPhq4/lX9GvAY+FNnT+p2qLGnwP9E4dH1N1VjpjEmYQ3aIL
 
 	// Default admin password for casdoor-all-in-one container.
 	defaultAdminPassword = "123"
+
+	// casdoorTestImage pins the Casdoor server the acceptance tests run against.
+	// Keep this pinned rather than tracking :latest — Casdoor ships several
+	// releases a week, and an unpinned tag silently retargets the suite at a new
+	// server, hiding upstream schema changes until something unrelated breaks.
+	// Bump it deliberately, and update the compatibility table in
+	// provider.go's MarkdownDescription in the same commit.
+	// Note: image tags carry no "v" prefix, unlike the upstream git tags.
+	casdoorTestImage = "casbin/casdoor-all-in-one:3.153.0"
 )
 
 // CasdoorTestConfig holds the configuration for connecting to a Casdoor server.
@@ -108,12 +117,25 @@ func cleanupTestEnv(ctx context.Context, t *testing.T, env *TestEnv) {
 	}
 }
 
+// casdoorImage returns the Casdoor image to test against. CI overrides it via
+// CASDOOR_TEST_IMAGE to run the compatibility matrix across supported versions.
+func casdoorImage() string {
+	if img := os.Getenv("CASDOOR_TEST_IMAGE"); img != "" {
+		return img
+	}
+
+	return casdoorTestImage
+}
+
 // setupLocalContainer starts a local Casdoor container and returns the test environment.
 func setupLocalContainer(ctx context.Context, t *testing.T) *TestEnv {
 	t.Helper()
 
+	image := casdoorImage()
+	t.Logf("Using Casdoor image %s", image)
+
 	req := testcontainers.ContainerRequest{
-		Image:        "casbin/casdoor-all-in-one:latest",
+		Image:        image,
 		ExposedPorts: []string{"8000/tcp"},
 		WaitingFor: wait.ForAll(
 			wait.ForHTTP("/api/health").WithPort("8000/tcp").WithStatusCodeMatcher(func(status int) bool {
