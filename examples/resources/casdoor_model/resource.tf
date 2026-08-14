@@ -3,7 +3,6 @@ resource "casdoor_model" "acl" {
   owner        = "my-organization"
   name         = "model-acl"
   display_name = "ACL Model"
-  is_enabled   = true
 
   model_text = <<-EOT
     [request_definition]
@@ -25,7 +24,6 @@ resource "casdoor_model" "rbac_domain" {
   owner        = "my-organization"
   name         = "model-rbac-domain"
   display_name = "RBAC with Domains"
-  is_enabled   = true
 
   model_text = <<-EOT
     [request_definition]
@@ -50,7 +48,6 @@ resource "casdoor_model" "abac" {
   owner        = "my-organization"
   name         = "model-abac"
   display_name = "ABAC Model"
-  is_enabled   = true
 
   model_text = <<-EOT
     [request_definition]

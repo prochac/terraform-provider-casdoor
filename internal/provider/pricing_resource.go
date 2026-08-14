@@ -41,10 +41,6 @@ type PricingResourceModel struct {
 	IsEnabled     types.Bool   `tfsdk:"is_enabled"`
 	TrialDuration types.Int64  `tfsdk:"trial_duration"`
 	Application   types.String `tfsdk:"application"`
-	Submitter     types.String `tfsdk:"submitter"`
-	Approver      types.String `tfsdk:"approver"`
-	ApproveTime   types.String `tfsdk:"approve_time"`
-	State         types.String `tfsdk:"state"`
 }
 
 func NewPricingResource() resource.Resource {
@@ -126,30 +122,6 @@ func (r *PricingResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Computed:    true,
 				Default:     stringdefault.StaticString(""),
 			},
-			"submitter": schema.StringAttribute{
-				Description: "The submitter of the pricing.",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString(""),
-			},
-			"approver": schema.StringAttribute{
-				Description: "The approver of the pricing.",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString(""),
-			},
-			"approve_time": schema.StringAttribute{
-				Description: "The time when the pricing was approved.",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString(""),
-			},
-			"state": schema.StringAttribute{
-				Description: "The current state of the pricing.",
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString(""),
-			},
 		},
 	}
 }
@@ -187,10 +159,6 @@ func pricingPlanToSDK(ctx context.Context, plan PricingResourceModel, createdTim
 		IsEnabled:     plan.IsEnabled.ValueBool(),
 		TrialDuration: int(plan.TrialDuration.ValueInt64()),
 		Application:   plan.Application.ValueString(),
-		Submitter:     plan.Submitter.ValueString(),
-		Approver:      plan.Approver.ValueString(),
-		ApproveTime:   plan.ApproveTime.ValueString(),
-		State:         plan.State.ValueString(),
 	}, diags
 }
 
@@ -275,10 +243,6 @@ func (r *PricingResource) Read(ctx context.Context, req resource.ReadRequest, re
 	state.IsEnabled = types.BoolValue(pricing.IsEnabled)
 	state.TrialDuration = types.Int64Value(int64(pricing.TrialDuration))
 	state.Application = types.StringValue(pricing.Application)
-	state.Submitter = types.StringValue(pricing.Submitter)
-	state.Approver = types.StringValue(pricing.Approver)
-	state.ApproveTime = types.StringValue(pricing.ApproveTime)
-	state.State = types.StringValue(pricing.State)
 
 	plansList, _ := types.ListValueFrom(ctx, types.StringType, pricing.Plans)
 	state.Plans = plansList

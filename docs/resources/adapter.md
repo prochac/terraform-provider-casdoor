@@ -33,7 +33,6 @@ resource "casdoor_adapter" "custom_db" {
   password      = var.db_password
   database      = "casbin"
   table         = "casbin_rule"
-  is_enabled    = true
 }
 
 # Example: Adapter with PostgreSQL
@@ -48,7 +47,6 @@ resource "casdoor_adapter" "postgres" {
   password      = var.db_password
   database      = "casbin"
   table         = "casbin_rule"
-  is_enabled    = true
 }
 ```
 
@@ -65,11 +63,9 @@ resource "casdoor_adapter" "postgres" {
 - `database` (String) The database name.
 - `database_type` (String) The database type (e.g., 'mysql', 'postgres', 'sqlite3').
 - `host` (String) The database host address.
-- `is_enabled` (Boolean) Whether this adapter is enabled.
 - `password` (String, Sensitive) The database password.
 - `port` (Number) The database port number.
 - `table` (String) The table name for storing policies.
-- `table_name_prefix` (String) The table name prefix for policy storage.
 - `type` (String) The type of the adapter (e.g., 'Database').
 - `use_same_db` (Boolean) Whether to use the same database as Casdoor.
 - `user` (String) The database username.

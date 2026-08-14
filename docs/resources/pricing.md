@@ -54,14 +54,10 @@ resource "casdoor_pricing" "with_trial" {
 ### Optional
 
 - `application` (String) The application this pricing is for.
-- `approve_time` (String) The time when the pricing was approved.
-- `approver` (String) The approver of the pricing.
 - `description` (String) The description of the pricing.
 - `display_name` (String) The display name of the pricing.
 - `is_enabled` (Boolean) Whether the pricing is enabled.
 - `plans` (List of String) List of plan names included in this pricing.
-- `state` (String) The current state of the pricing.
-- `submitter` (String) The submitter of the pricing.
 - `trial_duration` (Number) The trial duration in days.
 
 ### Read-Only

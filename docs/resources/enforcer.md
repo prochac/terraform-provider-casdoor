@@ -20,7 +20,6 @@ resource "casdoor_enforcer" "main" {
   display_name = "Main Enforcer"
   description  = "Primary authorization enforcer"
   model        = "my-organization/model-rbac"
-  is_enabled   = true
 }
 
 # Enforcer with adapter
@@ -31,7 +30,6 @@ resource "casdoor_enforcer" "with_adapter" {
   description  = "Enforcer with database adapter for policy storage"
   model        = "my-organization/model-acl"
   adapter      = "my-organization/adapter-db"
-  is_enabled   = true
 }
 
 # Enforcer referencing the model resource
@@ -41,7 +39,6 @@ resource "casdoor_enforcer" "api" {
   display_name = "API Enforcer"
   description  = "Enforcer for API authorization"
   model        = "${casdoor_model.acl.owner}/${casdoor_model.acl.name}"
-  is_enabled   = true
 
   depends_on = [casdoor_model.acl]
 }
@@ -61,7 +58,6 @@ resource "casdoor_enforcer" "api" {
 - `adapter` (String) The Casbin adapter name to use (format: 'organization/adapter-name').
 - `description` (String) A description of the enforcer.
 - `display_name` (String) The display name of the enforcer.
-- `is_enabled` (Boolean) Whether this enforcer is enabled.
 - `model_cfg` (Map of String) The model configuration key-value pairs.
 
 ### Read-Only

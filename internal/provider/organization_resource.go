@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -65,6 +66,35 @@ func AccountItemAttrTypes() map[string]attr.Type {
 		"modify_rule": types.StringType,
 		"regex":       types.StringType,
 	}
+}
+
+// accountItemsFromSDK converts SDK account items into a Terraform list. Casdoor
+// populates a default set on create, so this value always comes from the server.
+func accountItemsFromSDK(items []*casdoorsdk.AccountItem) (types.List, diag.Diagnostics) {
+	var diags diag.Diagnostics
+
+	objType := types.ObjectType{AttrTypes: AccountItemAttrTypes()}
+	if len(items) == 0 {
+		return types.ListNull(objType), diags
+	}
+
+	objList := make([]attr.Value, 0, len(items))
+	for _, a := range items {
+		obj, d := types.ObjectValue(AccountItemAttrTypes(), map[string]attr.Value{
+			"name":        types.StringValue(a.Name),
+			"visible":     types.BoolValue(a.Visible),
+			"view_rule":   types.StringValue(a.ViewRule),
+			"modify_rule": types.StringValue(a.ModifyRule),
+			"regex":       types.StringValue(a.Regex),
+		})
+		diags.Append(d...)
+		objList = append(objList, obj)
+	}
+
+	list, d := types.ListValue(objType, objList)
+	diags.Append(d...)
+
+	return list, diags
 }
 
 // MfaItemAttrTypes returns the attribute types for MfaItemModel.
@@ -226,6 +256,10 @@ func (r *OrganizationResource) Schema(_ context.Context, _ resource.SchemaReques
 			"password_options": schema.ListAttribute{
 				Description: "Password complexity options.",
 				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 				ElementType: types.StringType,
 			},
 			"password_obfuscator_type": schema.StringAttribute{
@@ -250,6 +284,10 @@ func (r *OrganizationResource) Schema(_ context.Context, _ resource.SchemaReques
 			"country_codes": schema.ListAttribute{
 				Description: "List of allowed country codes.",
 				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 				ElementType: types.StringType,
 			},
 			"default_avatar": schema.StringAttribute{
@@ -277,6 +315,10 @@ func (r *OrganizationResource) Schema(_ context.Context, _ resource.SchemaReques
 			"languages": schema.ListAttribute{
 				Description: "Supported languages for the organization.",
 				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 				ElementType: types.StringType,
 			},
 			"theme_data": schema.SingleNestedAttribute{
@@ -414,6 +456,10 @@ func (r *OrganizationResource) Schema(_ context.Context, _ resource.SchemaReques
 			"account_items": schema.ListNestedAttribute{
 				Description: "List of account item configurations that control user profile fields visibility and editability.",
 				Optional:    true,
+				Computed:    true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
@@ -554,7 +600,7 @@ func organizationPlanToSDK(ctx context.Context, plan OrganizationResourceModel, 
 	}
 
 	accountItems := make([]*casdoorsdk.AccountItem, 0)
-	if !plan.AccountItems.IsNull() {
+	if !plan.AccountItems.IsNull() && !plan.AccountItems.IsUnknown() {
 		var accountModels []AccountItemModel
 		diags.Append(plan.AccountItems.ElementsAs(ctx, &accountModels, false)...)
 		if diags.HasError() {
@@ -654,33 +700,33 @@ func (r *OrganizationResource) Create(ctx context.Context, req resource.CreateRe
 		return
 	}
 
+	// Populate from the server response, not the request: Casdoor fills in
+	// defaults (account items, languages, country codes, ...) on create.
 	if createdOrg != nil {
 		plan.CreatedTime = types.StringValue(createdOrg.CreatedTime)
 		plan.BalanceCurrency = types.StringValue(createdOrg.BalanceCurrency)
-	}
 
-	// Set list values to null if empty to match plan.
-	plan.PasswordOptions, diags = stringListFromSDK(ctx, org.PasswordOptions)
-	resp.Diagnostics.Append(diags...)
-	plan.CountryCodes, diags = stringListFromSDK(ctx, org.CountryCodes)
-	resp.Diagnostics.Append(diags...)
-	plan.UserTypes, diags = stringListFromSDK(ctx, org.UserTypes)
-	resp.Diagnostics.Append(diags...)
-	plan.Tags, diags = stringListFromSDK(ctx, org.Tags)
-	resp.Diagnostics.Append(diags...)
-	plan.Languages, diags = stringListFromSDK(ctx, org.Languages)
-	resp.Diagnostics.Append(diags...)
-	plan.NavItems, diags = stringListFromSDK(ctx, org.NavItems)
-	resp.Diagnostics.Append(diags...)
-	plan.UserNavItems, diags = stringListFromSDK(ctx, org.UserNavItems)
-	resp.Diagnostics.Append(diags...)
-	plan.WidgetItems, diags = stringListFromSDK(ctx, org.WidgetItems)
-	resp.Diagnostics.Append(diags...)
-	if len(org.MfaItems) == 0 {
-		plan.MfaItems = types.ListNull(types.ObjectType{AttrTypes: MfaItemAttrTypes()})
-	}
-	if len(org.AccountItems) == 0 {
-		plan.AccountItems = types.ListNull(types.ObjectType{AttrTypes: AccountItemAttrTypes()})
+		plan.PasswordOptions, diags = stringListFromSDK(ctx, createdOrg.PasswordOptions)
+		resp.Diagnostics.Append(diags...)
+		plan.CountryCodes, diags = stringListFromSDK(ctx, createdOrg.CountryCodes)
+		resp.Diagnostics.Append(diags...)
+		plan.UserTypes, diags = stringListFromSDK(ctx, createdOrg.UserTypes)
+		resp.Diagnostics.Append(diags...)
+		plan.Tags, diags = stringListFromSDK(ctx, createdOrg.Tags)
+		resp.Diagnostics.Append(diags...)
+		plan.Languages, diags = stringListFromSDK(ctx, createdOrg.Languages)
+		resp.Diagnostics.Append(diags...)
+		plan.NavItems, diags = stringListFromSDK(ctx, createdOrg.NavItems)
+		resp.Diagnostics.Append(diags...)
+		plan.UserNavItems, diags = stringListFromSDK(ctx, createdOrg.UserNavItems)
+		resp.Diagnostics.Append(diags...)
+		plan.WidgetItems, diags = stringListFromSDK(ctx, createdOrg.WidgetItems)
+		resp.Diagnostics.Append(diags...)
+		if len(createdOrg.MfaItems) == 0 {
+			plan.MfaItems = types.ListNull(types.ObjectType{AttrTypes: MfaItemAttrTypes()})
+		}
+		plan.AccountItems, diags = accountItemsFromSDK(createdOrg.AccountItems)
+		resp.Diagnostics.Append(diags...)
 	}
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
@@ -823,25 +869,8 @@ func (r *OrganizationResource) Read(ctx context.Context, req resource.ReadReques
 	}
 
 	// Convert AccountItems to list of objects.
-	if len(org.AccountItems) > 0 {
-		accountObjList := make([]attr.Value, 0, len(org.AccountItems))
-		for _, a := range org.AccountItems {
-			accountObj, diags := types.ObjectValue(AccountItemAttrTypes(), map[string]attr.Value{
-				"name":        types.StringValue(a.Name),
-				"visible":     types.BoolValue(a.Visible),
-				"view_rule":   types.StringValue(a.ViewRule),
-				"modify_rule": types.StringValue(a.ModifyRule),
-				"regex":       types.StringValue(a.Regex),
-			})
-			resp.Diagnostics.Append(diags...)
-			accountObjList = append(accountObjList, accountObj)
-		}
-		accountList, diags := types.ListValue(types.ObjectType{AttrTypes: AccountItemAttrTypes()}, accountObjList)
-		resp.Diagnostics.Append(diags...)
-		state.AccountItems = accountList
-	} else {
-		state.AccountItems = types.ListNull(types.ObjectType{AttrTypes: AccountItemAttrTypes()})
-	}
+	state.AccountItems, diags = accountItemsFromSDK(org.AccountItems)
+	resp.Diagnostics.Append(diags...)
 
 	if resp.Diagnostics.HasError() {
 		return
@@ -889,9 +918,8 @@ func (r *OrganizationResource) Update(ctx context.Context, req resource.UpdateRe
 	if len(org.MfaItems) == 0 {
 		plan.MfaItems = types.ListNull(types.ObjectType{AttrTypes: MfaItemAttrTypes()})
 	}
-	if len(org.AccountItems) == 0 {
-		plan.AccountItems = types.ListNull(types.ObjectType{AttrTypes: AccountItemAttrTypes()})
-	}
+	plan.AccountItems, diags = accountItemsFromSDK(org.AccountItems)
+	resp.Diagnostics.Append(diags...)
 
 	plan.ID = types.StringValue(plan.Owner.ValueString() + "/" + plan.Name.ValueString())
 

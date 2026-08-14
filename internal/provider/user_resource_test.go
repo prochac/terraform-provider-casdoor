@@ -92,7 +92,7 @@ func TestAccUserResource_import(t *testing.T) {
 				ImportState:             true,
 				ImportStateId:           config.OrganizationName + "/" + rName,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"password", "password_salt", "access_key", "access_secret", "totp_secret", "recovery_codes", "id_card"},
+				ImportStateVerifyIgnore: []string{"password", "password_salt", "totp_secret", "recovery_codes", "id_card"},
 			},
 		},
 	})
