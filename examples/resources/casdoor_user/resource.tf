@@ -17,9 +17,9 @@ resource "casdoor_user" "admin" {
   is_admin     = true
   type         = "normal-user"
 
-  affiliation = "Example Corp"
-  title       = "System Administrator"
-  language    = "en"
+  affiliation  = "Example Corp"
+  title        = "System Administrator"
+  language     = "en"
   country_code = "US"
 
   groups = ["admins", "developers"]
