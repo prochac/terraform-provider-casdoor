@@ -49,9 +49,13 @@ OpenTofu/Terraform Provider for [Casdoor](https://casdoor.org), an Identity and 
 - **Acceptance Tests Only:** Focus on `resource.Test` (Acc tests).
     - **Unit Tests:** minimal, only for complex logic.
 - **Testcontainers:** The test harness (`testhelper_test.go`) uses
-  `testcontainers-go` to spin up a `casdoor/casdoor:latest` container,
+  `testcontainers-go` to spin up a `casbin/casdoor-all-in-one` container,
   dynamically maps the container port, and configures the provider factory
   against the ephemeral endpoint.
+- **Pinned server:** The image tag lives in the `casdoorTestImage` constant and
+  is pinned deliberately — never move it to `:latest`. When bumping it, update
+  the compatibility table in `provider.go`'s `MarkdownDescription` and run
+  `go generate ./...` in the same commit.
 - **Data Isolation:** Use random suffixes for resource names in tests (e.g.,
   `acctest.RandStringFromCharSet`) to prevent collisions.
 
